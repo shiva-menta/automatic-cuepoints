@@ -15,9 +15,7 @@ def main():
 
     for song in cuepoint_playlist.Songs:
         ti = TrackInterface(song, db)
-        print(ti.read_beat_grid())
-        break
-        # db.clear_cuepoints(song)
+        ti.clear_hot_cues()
     
     # need to access ContentFile for song
 

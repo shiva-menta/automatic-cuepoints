@@ -1,7 +1,9 @@
 from typing import List, Tuple
 from pyrekordbox.anlz import AnlzFile
-from pyrekordbox.db6 import DjmdSongPlaylist
+from pyrekordbox.db6 import DjmdSongPlaylist, DjmdCue
 import datetime
+import json
+from uuid import uuid4
 
 class TrackInterface():
     """
@@ -11,19 +13,19 @@ class TrackInterface():
         """
         Song needs to be of format DjmdSongPlaylist.
         """
-        print(type(song), type(db))
         if not isinstance(song, DjmdSongPlaylist):
             raise TypeError("Song arg is not of type DjmdSongPlaylist")
 
         self.song = song
         self.song_content = song.Content
         self.content_id = self.song_content.ID
+        self.content_uuid = self.song_content.UUID
         self.db = db
     
-    def read_beat_grid(self) -> List[Tuple[int, float, float]]:
+    def read_beat_grid(self) -> List[Tuple[int, float, int]]:
         # Tuple[0] = Beat Number (1-4)
         # Tuple[1] = Tempo
-        # Tuple[2] = Time (ms)
+        # Tuple[2] = Time (sec)
         query = self.db.get_content_file(ContentID=self.content_id)
         if query.count() == 0:
             raise ValueError("No content files associated with song.")
@@ -41,7 +43,9 @@ class TrackInterface():
         beat_grid = anlz.get("beat_grid")
         
         # might want to revisit these timestamps (numpy conversion loses some specificity)
-        return list(zip(beat_grid[0].tolist(), beat_grid[1].tolist(), beat_grid[2].tolist()))
+        timestamp_float_arr = beat_grid[2] * 1000
+        timestamp_int_arr = timestamp_float_arr.astype(int)
+        return list(zip(beat_grid[0].tolist(), beat_grid[1].tolist(), timestamp_int_arr.tolist()))
 
     def clear_hot_cues(self):
         now = datetime.datetime.now()
@@ -74,11 +78,70 @@ class TrackInterface():
         content_cue_entry.updated_at = now
 
         self.db.commit()
+    
+    def _msec_to_frame(self, timestamp: int) -> int:
+        return int(timestamp * 150.0 / 1000)
+
+    def get_djmd_cue(self, timestamp: int, kind: int = 1, color: int = -1):
+        id_ = self.db.generate_unused_id(DjmdCue)
+        uuid = str(uuid4())
+        return DjmdCue.create(
+            ID=id_,
+            ContentID=self.content_id,
+            ContentUUID=self.content_uuid,
+            UUID=uuid,
+            Kind=kind,
+            Color=color,
+            InMsec=timestamp,
+            InFrame=self._msec_to_frame(timestamp),
+            InMpegFrame=0,
+            InMpegAbs=0,
+            OutMsec=-1,
+            OutFrame=0,
+            OutMpegFrame=0,
+            OutMpegAbs=0
+        )
+
+    def add_hot_cues(self, hot_cues):
+        if not isinstance(hot_cues, list):
+            raise TypeError("Did not pass in a list of hot cues.")
+        if not all(map(lambda cuepoint: isinstance(cuepoint, DjmdCue), hot_cues)):
+            raise TypeError("Cuepoints arg is not valid array of DjmdCue")
+        now = datetime.datetime.now()
+        
+        # Insert into DjmdCue table
+        for cuepoint in hot_cues:
+            self.db.add(cuepoint)
+
+        # Update DjmdContent table
+        djmd_content_entry = self.db.get_content(ID=self.content_id)
+        if not djmd_content_entry:
+            raise ValueError("Invalid djmd content query for given song.")
+        
+        djmd_content_entry.CueUpdated = str(int(djmd_content_entry.CueUpdated) + 1)
+        djmd_content_entry.rb_local_usn = self.db.increment_local_usn()
+        djmd_content_entry.updated_at = now
+
+        # Update ContentCue table
+        incl_keys = ["ID","ContentID","InMsec","InFrame","InMpegFrame","InMpegAbs","OutMsec","OutFrame","OutMpegFrame","OutMpegAbs","Kind","Color","ContentUUID","UUID","created_at","updated_at"]
+        cuepoint_jsons = []
+        for cuepoint in hot_cues:
+            cuepoint_jsons.append({key: getattr(cuepoint, key) for key in incl_keys if hasattr(cuepoint, key)})
+            for timestamp_field in ["created_at", "updated_at"]:
+                if timestamp_field not in cuepoint_jsons[-1]:
+                    continue
+                cuepoint_jsons[-1][timestamp_field] = cuepoint_jsons[-1][timestamp_field].strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        query = self.db.get_content_cue(ContentID=self.content_id)
+        if query.count() != 1:
+            raise ValueError("Invalid content cue query for given song.")
+        
+        content_cue_entry = query.first()
+        content_cue_entry.Cues = json.dumps(cuepoint_jsons)
+        content_cue_entry.rb_local_usn = self.db.increment_local_usn()
+        content_cue_entry.updated_at = now
+
+        self.db.commit()
 
     def read_hot_cues(self):
-        pass
-
-    
-
-    def write_hot_cue(self):
         pass

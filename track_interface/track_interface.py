@@ -144,4 +144,17 @@ class TrackInterface():
         self.db.commit()
 
     def read_hot_cues(self):
-        pass
+        query = self.db.get_content_cue(ContentId=self.content_id)
+        if query.count() != 1:
+            raise ValueError("Invalid content cue query for given song.")
+        
+        content_cue_entry = query.first()
+        cues_json = json.loads(content_cue_entry.Cues)
+        return [cue_data["InMsec"] for cue_data in cues_json]
+
+    def get_content_filepath(self) -> str:
+        djmd_content_entry = self.db.get_content(ID=self.content_id)
+        if not djmd_content_entry:
+            raise ValueError("Invalid djmd content query for given song.")
+        
+        return djmd_content_entry.FolderPath

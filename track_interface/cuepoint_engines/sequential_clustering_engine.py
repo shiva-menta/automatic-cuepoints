@@ -1,7 +1,8 @@
 from typing import List
 from cuepoint_engine import CuepointEngine
 
-class SongSegment():
+
+class SongSegment:
     def __init__(self, timestamp_msecs: int, length: int):
         pass
 
@@ -10,6 +11,7 @@ class SongSegment():
 
     def join_segment(self, segment: "SongSegment"):
         pass
+
 
 class SequentialClusteringEngine(CuepointEngine):
     """

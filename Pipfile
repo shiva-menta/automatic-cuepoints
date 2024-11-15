@@ -7,8 +7,11 @@ name = "pypi"
 pyrekordbox = "*"
 setuptools = "*"
 ruptures = "*"
+librosa = "*"
+ruff = "*"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
-python_version = "3.13"
+python_version = "3.12"

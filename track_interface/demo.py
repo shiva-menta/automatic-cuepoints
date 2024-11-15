@@ -1,5 +1,8 @@
 from track_interface import TrackInterface
 from pyrekordbox import Rekordbox6Database
+from cuepoint_engines.stft_change_point_engine import StftChangePointEngine
+from typing import Dict
+
 
 def get_first_beat(beat_grid):
     for beat, _, msec in beat_grid:
@@ -7,17 +10,21 @@ def get_first_beat(beat_grid):
             return msec
     return 0
 
+
 def main():
     db = Rekordbox6Database()
-    cuepoint_playlist = db.get_playlist(Name="autocuepoints").one()
+    cuepoint_playlist = db.get_playlist(Name="training_data").one()
 
+    # Calculate Aggregate Error Metrics
+    metrics = {key: 0 for key in ["true_positive", "false_positive", "false_negative"]}
     for song in cuepoint_playlist.Songs:
-        print(song.Content.Title)
-        ti = TrackInterface(song, db)
-        ti.clear_hot_cues()
-        first_beat = get_first_beat(ti.read_beat_grid())
-        cue = ti.get_djmd_cue(timestamp=first_beat)
-        ti.add_hot_cues([cue])
+        # print(song.Content.Title)
+        ti = TrackInterface(song, db, StftChangePointEngine)
+        for k, v in ti.get_cuepoint_engine_performance_metrics().items():
+            metrics[k] += v
+
+    print(metrics)
+
 
 if __name__ == "__main__":
     main()

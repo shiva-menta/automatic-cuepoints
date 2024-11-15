@@ -73,5 +73,6 @@ class StftChangePointEngine(ChangePointEngine):
         first_beat_change_points = self._convert_changepoints_to_first_beats(
             change_points
         )
+        processed_change_points = self._post_process(first_beat_change_points)
 
-        return first_beat_change_points
+        return processed_change_points

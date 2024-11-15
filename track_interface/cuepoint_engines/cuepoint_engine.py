@@ -4,7 +4,6 @@ from typing import List, Dict, Tuple
 class CuepointEngine:
     def __init__(self, file_path: str, beat_grid: List[Tuple[int, float, int]]):
         self.file_path = file_path
-        print(self.file_path)
         self.beat_grid = beat_grid
 
     def generate_cuepoints(self) -> List[int]:

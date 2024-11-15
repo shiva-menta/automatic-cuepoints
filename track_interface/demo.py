@@ -18,7 +18,7 @@ def main():
     # Calculate Aggregate Error Metrics
     metrics = {key: 0 for key in ["true_positive", "false_positive", "false_negative"]}
     for song in cuepoint_playlist.Songs:
-        # print(song.Content.Title)
+        print(song.Content.Title)
         ti = TrackInterface(song, db, StftChangePointEngine)
         for k, v in ti.get_cuepoint_engine_performance_metrics().items():
             metrics[k] += v

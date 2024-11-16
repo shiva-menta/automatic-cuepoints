@@ -1,6 +1,6 @@
 from typing import List, Tuple, Dict
 from pyrekordbox.anlz import AnlzFile
-from pyrekordbox.db6 import DjmdSongPlaylist, DjmdCue
+from pyrekordbox.db6 import DjmdSongPlaylist, DjmdCue, ContentCue
 from cuepoint_engines.cuepoint_engine import CuepointEngine
 import datetime
 import json
@@ -81,13 +81,13 @@ class TrackInterface:
 
         # Update ContentCue table
         query = self.db.get_content_cue(ContentID=self.content_id)
-        if query.count() != 1:
-            raise ValueError("Invalid content cue query for given song.")
-
-        content_cue_entry = query.first()
-        content_cue_entry.Cues = "[]"
-        content_cue_entry.rb_local_usn = self.db.increment_local_usn()
-        content_cue_entry.updated_at = now
+        if query.count() > 1:
+            raise ValueError(f"Invalid content cue query for given song – {query.count()} results.")
+        if query.count() == 1:
+            content_cue_entry = query.first()
+            content_cue_entry.Cues = "[]"
+            content_cue_entry.rb_local_usn = self.db.increment_local_usn()
+            content_cue_entry.updated_at = now
 
         self.db.commit()
 
@@ -96,7 +96,7 @@ class TrackInterface:
 
     def get_djmd_cue(self, timestamp: int, kind: int = 1, color: int = -1):
         # Kind = 4 for some reason is not a hot cue
-        id_ = self.db.generate_unused_id(DjmdCue)
+        id_ = str(self.db.generate_unused_id(DjmdCue))
         uuid = str(uuid4())
         return DjmdCue.create(
             ID=id_,
@@ -113,6 +113,17 @@ class TrackInterface:
             OutFrame=0,
             OutMpegFrame=0,
             OutMpegAbs=0,
+        )
+    
+    def get_empty_content_cue(self):
+        id_ = str(self.db.generate_unused_id(ContentCue))
+        uuid = str(uuid4())
+        return ContentCue.create(
+            ID=id_,
+            ContentID=self.content_id,
+            UUID=uuid,
+            Cues="[]",
+            rb_local_usn=self.db.increment_local_usn(),
         )
 
     def add_hot_cues(self, hot_cues):
@@ -131,7 +142,8 @@ class TrackInterface:
         if not djmd_content_entry:
             raise ValueError("Invalid djmd content query for given song.")
 
-        djmd_content_entry.CueUpdated = str(int(djmd_content_entry.CueUpdated) + 1)
+        prev_cue_updated = int(djmd_content_entry.CueUpdated) if djmd_content_entry.CueUpdated else 0
+        djmd_content_entry.CueUpdated = str(prev_cue_updated + 1)
         djmd_content_entry.rb_local_usn = self.db.increment_local_usn()
         djmd_content_entry.updated_at = now
 
@@ -171,9 +183,13 @@ class TrackInterface:
                 ].strftime("%Y-%m-%d %H:%M:%S %Z")
 
         query = self.db.get_content_cue(ContentID=self.content_id)
-        if query.count() != 1:
-            raise ValueError("Invalid content cue query for given song.")
-
+        if query.count() > 1:
+            raise ValueError(f"Invalid content cue query for given song – {query.count()} results.")
+        if query.count() == 0:
+            self.db.add(self.get_empty_content_cue())
+            self.db.flush()
+            query = self.db.get_content_cue(ContentID=self.content_id)
+        
         content_cue_entry = query.first()
         content_cue_entry.Cues = json.dumps(cuepoint_jsons)
         content_cue_entry.rb_local_usn = self.db.increment_local_usn()
@@ -181,10 +197,12 @@ class TrackInterface:
 
         self.db.commit()
 
-    def read_hot_cues(self):
+    def read_hot_cues(self) -> List[int]:
         query = self.db.get_content_cue(ContentID=self.content_id)
-        if query.count() != 1:
-            raise ValueError("Invalid content cue query for given song.")
+        if query.count() > 1:
+            raise ValueError(f"Invalid content cue query for given song – {query.count()} results.")
+        if query.count() == 0:
+            return []
 
         content_cue_entry = query.first()
         cues_json = json.loads(content_cue_entry.Cues)

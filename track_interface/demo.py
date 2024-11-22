@@ -19,27 +19,16 @@ import collections
 
 # Temp Ignore warnings
 import warnings
-
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-
-def get_first_beat(beat_grid):
-    for beat, _, msec in beat_grid:
-        if beat == 1:
-            return msec
-    return 0
 
 
 def add_cuepoints_to_test_data():
     db = Rekordbox6Database()
     cuepoint_playlist = db.get_playlist(Name="test_data").one()
 
-    for song in cuepoint_playlist.Songs:
-        print(song.Content.Title)
-        ti = TrackInterface(song, db, TempogramChangePointEngine)
+    for song in tqdm(cuepoint_playlist.Songs):
+        ti = TrackInterface(song, db, StftChangePointEngine)
         ti.generate_cuepoints()
-        return
-
 
 def get_error_metrics():
     db = Rekordbox6Database()
@@ -287,7 +276,7 @@ def fine_tune_stft():
 
 
 def main():
-    fine_tune_stft()
+    add_cuepoints_to_test_data()
 
 
 if __name__ == "__main__":

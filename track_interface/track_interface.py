@@ -6,7 +6,6 @@ import datetime
 import json
 from uuid import uuid4
 
-
 class TrackInterface:
     """
     Custom class for interacting with all data related to a specific song.
@@ -97,6 +96,23 @@ class TrackInterface:
 
     def _msec_to_frame(self, timestamp: int) -> int:
         return int(timestamp * 150.0 / 1000)
+
+    def _measure_count_to_color(self, measures: int) -> int:
+        match measures:
+            case 4:
+                return 1
+            case 8:
+                return 22
+            case 12:
+                return 38
+            case 16:
+                return 49
+            case 24:
+                return 38
+            case 32:
+                return 42
+            case _:
+                return 32
 
     def get_djmd_cue(self, timestamp: int, kind: int = 1, color: int = -1):
         # Kind = 4 for some reason is not a hot cue
@@ -225,6 +241,22 @@ class TrackInterface:
 
         return djmd_content_entry.FolderPath
 
+    def _get_first_beat_timestamps(self) -> List[int]:
+        return [beat_tuple[2] for beat_tuple in self.read_beat_grid() if beat_tuple[0] == 1]
+
+    def _color_label_cuepoints(self, cuepoints):
+        first_beat_timestamps = self._get_first_beat_timestamps()
+        timestamp_to_measure = {timestamp:idx for idx, timestamp in enumerate(first_beat_timestamps)}
+
+        for idx, cuepoint in enumerate(cuepoints):
+            section_end_timestamp = cuepoints[idx + 1].InMsec if idx + 1 <= len(cuepoints) - 1 else first_beat_timestamps[-1]
+            measure_count = timestamp_to_measure[section_end_timestamp] - timestamp_to_measure[cuepoint.InMsec]
+
+            cuepoint.ColorTableIndex = self._measure_count_to_color(measure_count)
+            cuepoint.Comment = f"{measure_count}-COUNT"
+        
+        return cuepoints
+
     def generate_cuepoints(self) -> None:
         self.clear_hot_cues()
         cuepoint_timestamps = self.cuepoint_engine.generate_cuepoints()
@@ -232,6 +264,7 @@ class TrackInterface:
             self.get_djmd_cue(timestamp, kind=idx + 1)
             for idx, timestamp in enumerate(cuepoint_timestamps)
         ]
+        cuepoint_objs = self._color_label_cuepoints(cuepoint_objs)
         self.add_hot_cues(cuepoint_objs)
 
     def get_cuepoint_engine_performance_metrics(self) -> Dict[str, int]:

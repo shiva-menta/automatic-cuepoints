@@ -12,7 +12,7 @@ class TrackInterface:
     Custom class for interacting with all data related to a specific song.
     """
 
-    def __init__(self, song, db, cuepoint_engine):
+    def __init__(self, song, db, cuepoint_engine, engine_params=None):
         """
         Song needs to be of format DjmdSongPlaylist.
         """
@@ -27,7 +27,9 @@ class TrackInterface:
         self.content_uuid = self.song_content.UUID
         self.db = db
         self.cuepoint_engine = cuepoint_engine(
-            file_path=self.get_content_filepath(), beat_grid=self.read_beat_grid()
+            file_path=self.get_content_filepath(),
+            beat_grid=self.read_beat_grid(),
+            params=engine_params,
         )
 
     def read_beat_grid(self) -> List[Tuple[int, float, int]]:
@@ -82,7 +84,9 @@ class TrackInterface:
         # Update ContentCue table
         query = self.db.get_content_cue(ContentID=self.content_id)
         if query.count() > 1:
-            raise ValueError(f"Invalid content cue query for given song – {query.count()} results.")
+            raise ValueError(
+                f"Invalid content cue query for given song – {query.count()} results."
+            )
         if query.count() == 1:
             content_cue_entry = query.first()
             content_cue_entry.Cues = "[]"
@@ -114,7 +118,7 @@ class TrackInterface:
             OutMpegFrame=0,
             OutMpegAbs=0,
         )
-    
+
     def get_empty_content_cue(self):
         id_ = str(self.db.generate_unused_id(ContentCue))
         uuid = str(uuid4())
@@ -142,7 +146,9 @@ class TrackInterface:
         if not djmd_content_entry:
             raise ValueError("Invalid djmd content query for given song.")
 
-        prev_cue_updated = int(djmd_content_entry.CueUpdated) if djmd_content_entry.CueUpdated else 0
+        prev_cue_updated = (
+            int(djmd_content_entry.CueUpdated) if djmd_content_entry.CueUpdated else 0
+        )
         djmd_content_entry.CueUpdated = str(prev_cue_updated + 1)
         djmd_content_entry.rb_local_usn = self.db.increment_local_usn()
         djmd_content_entry.updated_at = now
@@ -184,12 +190,14 @@ class TrackInterface:
 
         query = self.db.get_content_cue(ContentID=self.content_id)
         if query.count() > 1:
-            raise ValueError(f"Invalid content cue query for given song – {query.count()} results.")
+            raise ValueError(
+                f"Invalid content cue query for given song – {query.count()} results."
+            )
         if query.count() == 0:
             self.db.add(self.get_empty_content_cue())
             self.db.flush()
             query = self.db.get_content_cue(ContentID=self.content_id)
-        
+
         content_cue_entry = query.first()
         content_cue_entry.Cues = json.dumps(cuepoint_jsons)
         content_cue_entry.rb_local_usn = self.db.increment_local_usn()
@@ -200,7 +208,9 @@ class TrackInterface:
     def read_hot_cues(self) -> List[int]:
         query = self.db.get_content_cue(ContentID=self.content_id)
         if query.count() > 1:
-            raise ValueError(f"Invalid content cue query for given song – {query.count()} results.")
+            raise ValueError(
+                f"Invalid content cue query for given song – {query.count()} results."
+            )
         if query.count() == 0:
             return []
 

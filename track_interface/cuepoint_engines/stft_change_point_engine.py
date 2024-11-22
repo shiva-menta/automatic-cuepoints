@@ -3,16 +3,44 @@ from .changepoint_engine import ChangePointEngine
 import ruptures as rpt
 import librosa
 import numpy as np
+from dataclasses import dataclass
+import json
+import os
 
-FREQUENCY_BUCKETS = [(0, 200), (201, 600), (601, 3000), (3001, 7000), (7001, 40000)]
-PENALTY = 100000000
+
+@dataclass
+class StftChangePointParams:
+    frequency_buckets: List[Tuple[int, int]]
+    frequency_buckets_weights: List[int]
+    penalty: int
+    model: str
+    smoothing_window_size: int
 
 
 class StftChangePointEngine(ChangePointEngine):
+    def _get_default_params(self) -> None:
+        return StftChangePointParams(
+            frequency_buckets=[
+                (0, 60),
+                (61, 250),
+                (251, 500),
+                (501, 2000),
+                (2001, 4000),
+                (4001, 6000),
+                (6001, 22000),
+            ],
+            frequency_buckets_weights=[1.0, 1.0, 1.0, 0.5, 0.5, 1.0, 0.5],
+            penalty=50000000,
+            model="linear",
+            smoothing_window_size=0,
+        )
+
     def _generate_frequency_data(self) -> List[List[float]]:
         """
         Use STFT (Short Time Fourier Transform) to separate audio signal into XX frequency
         buckets.
+
+        Temporarily adding cache layer.
         """
         y, sr = librosa.load(self.file_path, sr=None)
         n_fft = 2048
@@ -20,14 +48,16 @@ class StftChangePointEngine(ChangePointEngine):
         magnitude = np.abs(stft_result)
         freqs = librosa.fft_frequencies(sr=sr)
 
-        freq_bucket_to_signal = [[] for _ in range(len(FREQUENCY_BUCKETS))]
+        freq_bucket_to_signal = [[] for _ in range(len(self.params.frequency_buckets))]
         num_time_slices = stft_result.shape[1]
 
         for t in range(num_time_slices):
-            for i, (lower, upper) in enumerate(FREQUENCY_BUCKETS):
+            for i, (lower, upper) in enumerate(self.params.frequency_buckets):
                 freq_indices = np.where((freqs >= lower) & (freqs <= upper))[0]
                 bucket_intensity = np.sum(magnitude[freq_indices, t])
-                freq_bucket_to_signal[i].append(bucket_intensity)
+                freq_bucket_to_signal[i].append(
+                    bucket_intensity * self.params.frequency_buckets_weights[i]
+                )
 
         return freq_bucket_to_signal
 
@@ -41,28 +71,40 @@ class StftChangePointEngine(ChangePointEngine):
         Uses linearly penalized segmentation to find change points in multivariate frequency data.
         """
         mat = np.array(freq_bucket_to_signal).T
-        model = rpt.KernelCPD(kernel="linear", min_size=min_frames).fit(mat)
-        change_points = model.predict(pen=PENALTY)
+        model = rpt.KernelCPD(kernel=self.params.model, min_size=min_frames).fit(mat)
+        change_points = model.predict(pen=self.params.penalty)
 
         return [change_point * frame_to_msec for change_point in change_points]
 
     def _moving_average(self, x, w):
         return np.convolve(x, np.ones(w), "valid") / w
 
+    def _sma(self, data, window_size):
+        smoothed = []
+        for i in range(len(data)):
+            # Determine the window range
+            start = max(0, i - window_size // 2)
+            end = min(len(data), i + window_size // 2 + 1)
+            window = data[start:end]
+            smoothed.append(sum(window) / len(window))
+        return smoothed
+
     def _smooth_frequency_data(
         self, freq_bucket_to_signal: List[List[float]]
     ) -> List[List[float]]:
+        """
+        Currently unused – setting the right penalty parameter works better than smoothing data.
+        """
         smoothed_freq_buckets_to_signal = []
         for bucket in freq_bucket_to_signal:
-            np_arr = np.array(bucket)
-            smoothed_freq_buckets_to_signal.append(self._moving_average(np_arr, 200))
+            smoothed_freq_buckets_to_signal.append(
+                self._sma(bucket, self.params.smoothing_window_size)
+            )
 
         return smoothed_freq_buckets_to_signal
 
     def generate_cuepoints(self) -> List[int]:
-        freq_bucket_to_signal = self._smooth_frequency_data(
-            self._generate_frequency_data()
-        )
+        freq_bucket_to_signal = self._generate_frequency_data()
         song_length = librosa.get_duration(path=self.file_path) * 1000.0
         sample_size_msecs = song_length / len(freq_bucket_to_signal[0])
         change_points = self._change_point_detection(

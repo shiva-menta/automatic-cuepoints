@@ -9,6 +9,7 @@ setuptools = "*"
 ruptures = "*"
 librosa = "*"
 ruff = "*"
+tqdm = "*"
 
 [dev-packages]
 ipykernel = "*"

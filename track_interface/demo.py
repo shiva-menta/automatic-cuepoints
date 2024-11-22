@@ -19,6 +19,7 @@ import collections
 
 # Temp Ignore warnings
 import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
@@ -29,6 +30,7 @@ def add_cuepoints_to_test_data():
     for song in tqdm(cuepoint_playlist.Songs):
         ti = TrackInterface(song, db, StftChangePointEngine)
         ti.generate_cuepoints()
+
 
 def get_error_metrics():
     db = Rekordbox6Database()
@@ -42,6 +44,7 @@ def get_error_metrics():
             metrics[k] += v
 
     print(metrics)
+    print(f"Score: {get_metrics_f1_score(metrics)}")
     return metrics
 
 
@@ -276,7 +279,8 @@ def fine_tune_stft():
 
 
 def main():
-    add_cuepoints_to_test_data()
+    get_error_metrics()
+    # add_cuepoints_to_test_data()
 
 
 if __name__ == "__main__":

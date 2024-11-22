@@ -6,6 +6,7 @@ import numpy as np
 from dataclasses import dataclass
 import json
 import os
+from .heuristics import even_bar_placement
 
 
 @dataclass
@@ -116,5 +117,8 @@ class StftChangePointEngine(ChangePointEngine):
             change_points
         )
         processed_change_points = self._post_process(first_beat_change_points)
+        adjusted_change_points = even_bar_placement(
+            self._get_first_beat_timestamps(), processed_change_points
+        )
 
-        return processed_change_points
+        return adjusted_change_points

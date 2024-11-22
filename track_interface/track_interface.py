@@ -6,6 +6,7 @@ import datetime
 import json
 from uuid import uuid4
 
+
 class TrackInterface:
     """
     Custom class for interacting with all data related to a specific song.
@@ -242,19 +243,30 @@ class TrackInterface:
         return djmd_content_entry.FolderPath
 
     def _get_first_beat_timestamps(self) -> List[int]:
-        return [beat_tuple[2] for beat_tuple in self.read_beat_grid() if beat_tuple[0] == 1]
+        return [
+            beat_tuple[2] for beat_tuple in self.read_beat_grid() if beat_tuple[0] == 1
+        ]
 
     def _color_label_cuepoints(self, cuepoints):
         first_beat_timestamps = self._get_first_beat_timestamps()
-        timestamp_to_measure = {timestamp:idx for idx, timestamp in enumerate(first_beat_timestamps)}
+        timestamp_to_measure = {
+            timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
+        }
 
         for idx, cuepoint in enumerate(cuepoints):
-            section_end_timestamp = cuepoints[idx + 1].InMsec if idx + 1 <= len(cuepoints) - 1 else first_beat_timestamps[-1]
-            measure_count = timestamp_to_measure[section_end_timestamp] - timestamp_to_measure[cuepoint.InMsec]
+            section_end_timestamp = (
+                cuepoints[idx + 1].InMsec
+                if idx + 1 <= len(cuepoints) - 1
+                else first_beat_timestamps[-1]
+            )
+            measure_count = (
+                timestamp_to_measure[section_end_timestamp]
+                - timestamp_to_measure[cuepoint.InMsec]
+            )
 
             cuepoint.ColorTableIndex = self._measure_count_to_color(measure_count)
             cuepoint.Comment = f"{measure_count}-COUNT"
-        
+
         return cuepoints
 
     def generate_cuepoints(self) -> None:

@@ -22,7 +22,10 @@ def even_bar_placement(
         curr_timestamp = cuepoint_timestamps[cuepoint_idx]
         curr_measure = timestamp_to_measure[curr_timestamp]
         closest_four_divisor = (curr_measure - prev_measure_num) // 4
-        lower, upper = closest_four_divisor * 4, (closest_four_divisor + 1) * 4
+        lower, upper = (
+            curr_measure + closest_four_divisor * 4,
+            curr_measure + (closest_four_divisor + 1) * 4,
+        )
 
         closest_measure = (
             lower if abs(curr_measure - lower) <= abs(curr_measure - upper) else upper

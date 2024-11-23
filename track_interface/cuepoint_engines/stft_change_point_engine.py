@@ -4,12 +4,11 @@ import ruptures as rpt
 import librosa
 import numpy as np
 from dataclasses import dataclass
-import json
-import os
 from .heuristics import even_bar_placement
+from .cache import CACHE_ENABLED, get, put, exists, convert_to_key
 
 
-@dataclass
+@dataclass(frozen=True)
 class StftChangePointParams:
     frequency_buckets: List[Tuple[int, int]]
     frequency_buckets_weights: List[int]
@@ -43,14 +42,30 @@ class StftChangePointEngine(ChangePointEngine):
 
         Temporarily adding cache layer.
         """
-        y, sr = librosa.load(self.file_path, sr=None)
-        n_fft = 2048
-        stft_result = librosa.stft(y, n_fft=n_fft, hop_length=512)
-        magnitude = np.abs(stft_result)
-        freqs = librosa.fft_frequencies(sr=sr)
+        mag_cache_key = convert_to_key("mag_" + self.file_path)
+        freqs_cache_key = convert_to_key("freq_" + self.file_path)
+
+        magnitude = freqs = None
+        if CACHE_ENABLED:
+            magnitude = get(mag_cache_key)
+            freqs = get(freqs_cache_key)
+
+        if magnitude is None or freqs is None:
+            print("data not in cache")
+            y, sr = librosa.load(self.file_path, sr=None)
+            n_fft = 2048
+            stft_result = librosa.stft(y, n_fft=n_fft, hop_length=512)
+            magnitude = np.abs(stft_result)
+            freqs = librosa.fft_frequencies(sr=sr)
+
+        if CACHE_ENABLED:
+            if not exists(mag_cache_key):
+                put(mag_cache_key, magnitude)
+            if not exists(freqs_cache_key):
+                put(freqs_cache_key, freqs)
 
         freq_bucket_to_signal = [[] for _ in range(len(self.params.frequency_buckets))]
-        num_time_slices = stft_result.shape[1]
+        num_time_slices = magnitude.shape[1]
 
         for t in range(num_time_slices):
             for i, (lower, upper) in enumerate(self.params.frequency_buckets):

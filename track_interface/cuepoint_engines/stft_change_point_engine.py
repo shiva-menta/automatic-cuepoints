@@ -4,7 +4,7 @@ import ruptures as rpt
 import librosa
 import numpy as np
 from dataclasses import dataclass
-from .heuristics import even_bar_placement
+from .heuristics import RestrictedMeasureIncrements
 from .cache import CACHE_ENABLED, get, put, exists, convert_to_key
 
 
@@ -127,12 +127,13 @@ class StftChangePointEngine(ChangePointEngine):
             self._get_min_changepoint_distance(sample_size_msecs),
             sample_size_msecs,
         )
-        first_beat_change_points = self._convert_changepoints_to_first_beats(
-            change_points
-        )
-        processed_change_points = self._post_process(first_beat_change_points)
-        adjusted_change_points = even_bar_placement(
-            self._get_first_beat_timestamps(), processed_change_points
-        )
 
-        return adjusted_change_points
+        change_points = self._convert_changepoints_to_first_beats(change_points)
+        change_points = self._post_process(change_points)
+
+        # Heuristics
+        first_beat_timestamps = self._get_first_beat_timestamps()
+        for heuristic in [RestrictedMeasureIncrements]:
+            change_points = heuristic.apply(first_beat_timestamps, change_points)
+
+        return change_points

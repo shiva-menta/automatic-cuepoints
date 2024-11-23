@@ -1,5 +1,6 @@
 from typing import List
 from abc import abstractmethod
+import collections
 
 
 class Heuristic:
@@ -46,6 +47,11 @@ class RestrictedMeasureIncrements(Heuristic):
                 prev_measure + 2,
                 prev_measure + (closest_four_divisor + 1) * 4,
             ]
+            possible_next_measures = [
+                measure
+                for measure in possible_next_measures
+                if measure < len(first_beat_timestamps)
+            ]
 
             adj_curr_measure = curr_measure
             possible_next_measure_distances = list(
@@ -69,3 +75,72 @@ class RestrictedMeasureIncrements(Heuristic):
                 new_cuepoints.append(adj_curr_timestamp)
 
         return new_cuepoints
+
+
+class SongStartCuepoint(Heuristic):
+    """
+    Change point detection doesn't consider the start of a song as a change point.
+    Generally, if songs have a one bar intro, unless the penalty parameter is set
+    very high, the method fails to detect this one bar intro due to the small window.
+
+    This heuristic adds a change point at the first beat, though it may not always
+    align with the first beat itself, as some songs have beatless intros. This is done
+    through allowing each existing cuepoint to "vote" for its best guess for song start
+    cuepoint, preferring cuepoints that are an even factor of 4 measures away, then 2.
+    """
+
+    @staticmethod
+    def apply(
+        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
+    ) -> List[int]:
+        timestamp_to_measure = {
+            timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
+        }
+
+        start_measure_votes = {
+            idx: 0
+            for idx in range(4)
+            if first_beat_timestamps[idx] < cuepoint_timestamps[0]
+        }
+        if not start_measure_votes:
+            return cuepoint_timestamps
+
+        for cuepoint in cuepoint_timestamps:
+            curr_measure = timestamp_to_measure[cuepoint]
+            for possible_start in start_measure_votes:
+                for divisor in [4, 2]:
+                    if (curr_measure - possible_start) % divisor == 0:
+                        start_measure_votes[possible_start] += 1
+                        break
+
+        best_start = max(start_measure_votes, key=start_measure_votes.get)
+        return [first_beat_timestamps[best_start]] + cuepoint_timestamps
+
+
+class FirstBeatCuepoint(Heuristic):
+    """
+    Conditionally adds a cuepoint to the first beat of a song irregardless if the song starts
+    at that point.
+    """
+
+    @staticmethod
+    def apply(
+        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
+    ) -> List[int]:
+        if cuepoint_timestamps[0] != first_beat_timestamps[0]:
+            return first_beat_timestamps[:1] + cuepoint_timestamps
+        return cuepoint_timestamps
+
+
+class SongEndCuepoint(Heuristic):
+    """
+    Removes ending cuepoint if it marks the last measure of the song.
+    """
+
+    @staticmethod
+    def apply(
+        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
+    ) -> List[int]:
+        if cuepoint_timestamps[-1] == first_beat_timestamps[-1]:
+            cuepoint_timestamps.pop()
+        return cuepoint_timestamps

@@ -47,17 +47,3 @@ class ChangePointEngine(CuepointEngine):
             self._get_closest_timestamp(timestamps, change_point)
             for change_point in change_points
         ]
-
-    def _post_process(self, change_points: List[int]) -> List[int]:
-        """
-        1. Add cue point for first beat of first measure (unless there's already a cuepoint at the first beat of second measure).
-        2. Remove last cue point if it is one of last four beats total.
-
-        Some heuristic for track intros
-        """
-        first_beat = self._get_first_beat_timestamps()[0]
-        last_measure_beat_grid = self.beat_grid[-4:]
-        if any(map(lambda x: x[2] == change_points[-1], last_measure_beat_grid)):
-            change_points.pop()
-
-        return [first_beat] + change_points

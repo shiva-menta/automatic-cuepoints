@@ -4,7 +4,12 @@ import ruptures as rpt
 import librosa
 import numpy as np
 from dataclasses import dataclass
-from .heuristics import RestrictedMeasureIncrements
+from .heuristics import (
+    RestrictedMeasureIncrements,
+    SongStartCuepoint,
+    FirstBeatCuepoint,
+    SongEndCuepoint,
+)
 from .cache import CACHE_ENABLED, get, put, exists, convert_to_key
 
 
@@ -129,11 +134,14 @@ class StftChangePointEngine(ChangePointEngine):
         )
 
         change_points = self._convert_changepoints_to_first_beats(change_points)
-        change_points = self._post_process(change_points)
 
         # Heuristics
         first_beat_timestamps = self._get_first_beat_timestamps()
-        for heuristic in [RestrictedMeasureIncrements]:
+        for heuristic in [
+            SongStartCuepoint,
+            RestrictedMeasureIncrements,
+            SongEndCuepoint,
+        ]:
             change_points = heuristic.apply(first_beat_timestamps, change_points)
 
         return change_points

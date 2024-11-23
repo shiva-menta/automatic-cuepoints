@@ -51,7 +51,6 @@ class StftChangePointEngine(ChangePointEngine):
             freqs = get(freqs_cache_key)
 
         if magnitude is None or freqs is None:
-            print("data not in cache")
             y, sr = librosa.load(self.file_path, sr=None)
             n_fft = 2048
             stft_result = librosa.stft(y, n_fft=n_fft, hop_length=512)

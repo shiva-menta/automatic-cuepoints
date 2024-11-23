@@ -109,7 +109,7 @@ class TrackInterface:
             case 16:
                 return 49
             case 24:
-                return 38
+                return 60
             case 32:
                 return 42
             case _:

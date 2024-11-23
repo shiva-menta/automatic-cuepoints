@@ -4,7 +4,7 @@ import hashlib
 from functools import cache
 import numpy as np
 
-CACHE_ENABLED = True
+CACHE_ENABLED = False
 CACHE_PATH = "~/Desktop/autocuepoints_cache/"
 
 

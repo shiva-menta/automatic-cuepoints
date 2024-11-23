@@ -16,6 +16,39 @@ class Heuristic:
         pass
 
 
+class FirstBeatsOnly(Heuristic):
+    """
+    Moves cuepoints to the closest first beat of a measure.
+    """
+
+    @staticmethod
+    def _get_closest_timestamp_to_target(timestamps: List[int], tgt: int) -> int:
+        closest_idx, closest_dist = 0, abs(tgt - timestamps[0])
+        l, r = 0, len(timestamps) - 1
+
+        while l <= r:
+            mid = (l + r) // 2
+            if abs(timestamps[mid] - tgt) < closest_dist:
+                closest_idx, closest_dist = mid, abs(timestamps[mid] - tgt)
+            if tgt >= timestamps[mid]:
+                l = mid + 1
+            else:
+                r = mid - 1
+
+        return timestamps[closest_idx]
+
+    @staticmethod
+    def apply(
+        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
+    ) -> List[int]:
+        return [
+            FirstBeatsOnly._get_closest_timestamp_to_target(
+                first_beat_timestamps, cuepoint
+            )
+            for cuepoint in cuepoint_timestamps
+        ]
+
+
 class RestrictedMeasureIncrements(Heuristic):
     """
     Attempts to adjust change point location based on distance from previous change point.

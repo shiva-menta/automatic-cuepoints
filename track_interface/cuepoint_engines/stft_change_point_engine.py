@@ -9,6 +9,7 @@ from .heuristics import (
     SongStartCuepoint,
     FirstBeatCuepoint,
     SongEndCuepoint,
+    FirstBeatsOnly,
 )
 from .cache import CACHE_ENABLED, get, put, exists, convert_to_key
 
@@ -133,11 +134,10 @@ class StftChangePointEngine(ChangePointEngine):
             sample_size_msecs,
         )
 
-        change_points = self._convert_changepoints_to_first_beats(change_points)
-
         # Heuristics
         first_beat_timestamps = self._get_first_beat_timestamps()
         for heuristic in [
+            FirstBeatsOnly,
             SongStartCuepoint,
             RestrictedMeasureIncrements,
             SongEndCuepoint,

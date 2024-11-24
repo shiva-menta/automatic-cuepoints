@@ -5,7 +5,7 @@ from cuepoint_engines.stft_change_point_engine import (
     StftChangePointParams,
 )
 from cuepoint_engines.tempogram_change_point_engine import TempogramChangePointEngine
-from typing import Dict
+from typing import Dict, Tuple
 from tqdm import tqdm
 from itertools import product
 import gc
@@ -15,6 +15,7 @@ import numpy as np
 import ruptures as rpt
 from typing import List
 import collections
+import math
 
 
 # Temp Ignore warnings
@@ -101,6 +102,15 @@ def _get_closest_timestamp(timestamps: List[int], tgt: int) -> int:
     return timestamps[closest_idx]
 
 
+def _closest_powers_of_two(prev_measure: int, curr_measure: int) -> Tuple[int, int]:
+    diff = curr_measure - prev_measure
+    if diff <= 0:
+        return ()
+
+    base_log = int(math.log(diff, 2))
+    return (prev_measure + 2**base_log, prev_measure + 2 ** (base_log + 1))
+
+
 def get_stft_metrics(
     params, params_num, magnitude, freqs, beat_grid, cuepoints, song_length
 ):
@@ -128,17 +138,84 @@ def get_stft_metrics(
     model = rpt.KernelCPD(kernel=params.model, min_size=min_frames).fit(mat)
     change_points = model.predict(pen=params.penalty)
     change_points = [change_point * sample_size_msecs for change_point in change_points]
+
+    # first beats only heuristic
     change_points = [
         _get_closest_timestamp(first_beat_timestamps, change_point)
         for change_point in change_points
     ]
 
-    # post process
-    first_beat = first_beat_timestamps[0]
-    last_measure_beat_grid = beat_grid[-4:]
-    if any(map(lambda x: x[2] == change_points[-1], last_measure_beat_grid)):
+    # song start cuepoint heuristic
+    timestamp_to_measure = {
+        timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
+    }
+
+    start_measure_votes = {
+        idx: 0 for idx in range(4) if first_beat_timestamps[idx] < change_points[0]
+    }
+    if start_measure_votes:
+        for cuepoint in change_points:
+            curr_measure = timestamp_to_measure[cuepoint]
+            for possible_start in start_measure_votes:
+                for divisor in [4, 2]:
+                    if (curr_measure - possible_start) % divisor == 0:
+                        start_measure_votes[possible_start] += 1
+                        break
+
+    best_start = max(start_measure_votes, key=start_measure_votes.get)
+    change_points = [first_beat_timestamps[best_start]] + change_points
+
+    # restricted measure increments heuristic
+    MEASURE_ADJUSTMENT_TOLERANCE = 1
+    timestamp_to_measure = {
+        timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
+    }
+    prev_measure = timestamp_to_measure[change_points[0]]
+    new_cuepoints = [change_points[0]]
+
+    for cuepoint_idx in range(1, len(change_points)):
+        curr_timestamp = change_points[cuepoint_idx]
+        curr_measure = timestamp_to_measure[curr_timestamp]
+
+        closest_four_divisor = (curr_measure - prev_measure) // 4
+        possible_next_measures = [
+            *_closest_powers_of_two(prev_measure, curr_measure),
+            prev_measure + 1,
+            prev_measure + 2,
+            prev_measure + closest_four_divisor * 4,
+            prev_measure + (closest_four_divisor + 1) * 4,
+        ]
+        possible_next_measures = [
+            measure
+            for measure in possible_next_measures
+            if measure < len(first_beat_timestamps)
+        ]
+
+        adj_curr_measure = curr_measure
+        possible_next_measure_distances = list(
+            map(lambda x: abs(x - curr_measure), possible_next_measures)
+        )
+        best_possible_next_measure = possible_next_measures[
+            possible_next_measure_distances.index(min(possible_next_measure_distances))
+        ]
+
+        if (
+            abs(best_possible_next_measure - curr_measure)
+            <= MEASURE_ADJUSTMENT_TOLERANCE
+        ):
+            adj_curr_measure = best_possible_next_measure
+
+        prev_measure = adj_curr_measure
+        adj_curr_timestamp = first_beat_timestamps[adj_curr_measure]
+
+        if adj_curr_timestamp != new_cuepoints[-1]:
+            new_cuepoints.append(adj_curr_timestamp)
+
+    change_points = new_cuepoints
+
+    # song end cuepoint heuristic
+    if change_points[-1] == first_beat_timestamps[-1]:
         change_points.pop()
-    change_points = [first_beat] + change_points
 
     # calculate result metrics
     estimated_idx = labeled_idx = 0
@@ -279,8 +356,9 @@ def fine_tune_stft():
 
 
 def main():
-    get_error_metrics()
-    # add_cuepoints_to_test_data()
+    # get_error_metrics()
+    add_cuepoints_to_test_data()
+    # fine_tune_stft()
 
 
 if __name__ == "__main__":

@@ -27,16 +27,14 @@ class StftChangePointEngine(ChangePointEngine):
     def _get_default_params(self) -> None:
         return StftChangePointParams(
             frequency_buckets=[
-                (0, 60),
-                (61, 250),
-                (251, 500),
-                (501, 2000),
-                (2001, 4000),
-                (4001, 6000),
-                (6001, 22000),
+                (0, 200),
+                (201, 600),
+                (601, 3000),
+                (3001, 7000),
+                (7001, 22000),
             ],
-            frequency_buckets_weights=[1.0, 1.0, 1.0, 0.5, 0.5, 1.0, 0.5],
-            penalty=50000000,
+            frequency_buckets_weights=[1.0, 1.0, 1.0, 0.5, 1.0],
+            penalty=75000000,
             model="linear",
             smoothing_window_size=0,
         )

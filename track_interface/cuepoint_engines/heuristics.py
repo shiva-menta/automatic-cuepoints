@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Tuple
 from abc import abstractmethod
-import collections
+import math
 
 
 class Heuristic:
@@ -52,12 +52,22 @@ class FirstBeatsOnly(Heuristic):
 class RestrictedMeasureIncrements(Heuristic):
     """
     Attempts to adjust change point location based on distance from previous change point.
-    - Considers optimal change point distances as 1, 2, or multiple of four.
+    - Considers optimal change point distances as 1, 2, or multiple of four. Preference is
+      given to powers of two.
     - Adjusts change point if the number of measures moved to reach closest optimal change point
       is within MEASURE_ADJUSTMENT_TOLERANCE.
     """
 
     MEASURE_ADJUSTMENT_TOLERANCE = 1
+
+    @staticmethod
+    def closest_powers_of_two(prev_measure: int, curr_measure: int) -> Tuple[int, int]:
+        diff = curr_measure - prev_measure
+        if diff <= 0:
+            return ()
+
+        base_log = int(math.log(diff, 2))
+        return (prev_measure + 2**base_log, prev_measure + 2 ** (base_log + 1))
 
     @staticmethod
     def apply(
@@ -75,9 +85,12 @@ class RestrictedMeasureIncrements(Heuristic):
 
             closest_four_divisor = (curr_measure - prev_measure) // 4
             possible_next_measures = [
+                *RestrictedMeasureIncrements.closest_powers_of_two(
+                    prev_measure, curr_measure
+                ),
                 prev_measure + 1,
-                prev_measure + closest_four_divisor * 4,
                 prev_measure + 2,
+                prev_measure + closest_four_divisor * 4,
                 prev_measure + (closest_four_divisor + 1) * 4,
             ]
             possible_next_measures = [
@@ -102,6 +115,7 @@ class RestrictedMeasureIncrements(Heuristic):
             ):
                 adj_curr_measure = best_possible_next_measure
 
+            prev_measure = adj_curr_measure
             adj_curr_timestamp = first_beat_timestamps[adj_curr_measure]
 
             if adj_curr_timestamp != new_cuepoints[-1]:

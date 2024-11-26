@@ -1,17 +1,16 @@
 from typing import List, Tuple
-from .changepoint_engine import ChangePointEngine
+from track_interface.cuepoint_engines.changepoint_engine import ChangePointEngine
 import ruptures as rpt
 import librosa
 import numpy as np
 from dataclasses import dataclass
-from .heuristics import (
+from track_interface.cuepoint_engines.heuristics import (
     RestrictedMeasureIncrements,
     SongStartCuepoint,
-    FirstBeatCuepoint,
     SongEndCuepoint,
     FirstBeatsOnly,
 )
-from .cache import CACHE_ENABLED, get, put, exists, convert_to_key
+from track_interface.cuepoint_engines.cache import CACHE_ENABLED, get, put, exists, convert_to_key
 
 
 @dataclass(frozen=True)

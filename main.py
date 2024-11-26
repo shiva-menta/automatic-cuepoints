@@ -4,7 +4,7 @@ from track_interface.cuepoint_engines.stft_change_point_engine import (
     StftChangePointEngine,
 )
 from track_interface.track_interface import TrackInterface
-from enum import Enum
+
 
 def get_mode(mode_arg: str) -> str:
     match mode_arg.lower():
@@ -14,7 +14,7 @@ def get_mode(mode_arg: str) -> str:
             return "ADD"
         case _:
             raise ValueError("Invalid mode argument.")
-        
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -28,7 +28,9 @@ def main():
     encryption_key = args.encryption_key
 
     db = (
-        Rekordbox6Database(key=encryption_key) if encryption_key else Rekordbox6Database()
+        Rekordbox6Database(key=encryption_key)
+        if encryption_key
+        else Rekordbox6Database()
     )
     playlist = db.get_playlist(Name=playlist).one()
 

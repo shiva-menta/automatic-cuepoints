@@ -1,5 +1,4 @@
-from .cuepoint_engine import CuepointEngine
-from typing import List
+from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 
 
 class ChangePointEngine(CuepointEngine):

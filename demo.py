@@ -1,14 +1,12 @@
-from track_interface import TrackInterface
+from track_interface.track_interface import TrackInterface
 from pyrekordbox import Rekordbox6Database
-from cuepoint_engines.stft_change_point_engine import (
+from track_interface.cuepoint_engines.stft_change_point_engine import (
     StftChangePointEngine,
     StftChangePointParams,
 )
-from cuepoint_engines.tempogram_change_point_engine import TempogramChangePointEngine
-from typing import Dict, Tuple
+from typing import Tuple
 from tqdm import tqdm
 from itertools import product
-import gc
 import multiprocessing
 import librosa
 import numpy as np

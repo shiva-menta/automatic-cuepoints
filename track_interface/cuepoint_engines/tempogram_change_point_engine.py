@@ -1,4 +1,4 @@
-from .changepoint_engine import ChangePointEngine
+from track_interface.cuepoint_engines.changepoint_engine import ChangePointEngine
 from typing import List
 import librosa
 import ruptures as rpt

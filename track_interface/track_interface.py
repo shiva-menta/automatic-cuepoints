@@ -1,10 +1,12 @@
-from typing import List, Tuple, Dict
-from pyrekordbox.anlz import AnlzFile
-from pyrekordbox.db6 import DjmdSongPlaylist, DjmdCue, ContentCue
-from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 import datetime
 import json
+from typing import Dict, List, Tuple
 from uuid import uuid4
+
+from pyrekordbox.anlz import AnlzFile
+from pyrekordbox.db6 import ContentCue, DjmdCue, DjmdSongPlaylist
+
+from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 
 
 class TrackInterface:
@@ -67,7 +69,6 @@ class TrackInterface:
         # Update DjmdCue table
         query = self.db.get_cue(ContentID=self.content_id)
         if query.count() == 0:
-            print(f"No cues found for song with content ID: {self.content_id}")
             return
         for entry in query:
             self.db.delete(entry)

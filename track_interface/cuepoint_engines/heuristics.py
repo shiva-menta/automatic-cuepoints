@@ -1,6 +1,6 @@
-from typing import List, Tuple
-from abc import abstractmethod
 import math
+from abc import abstractmethod
+from typing import List, Tuple
 
 
 class Heuristic:

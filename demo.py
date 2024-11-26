@@ -1,23 +1,20 @@
-from track_interface.track_interface import TrackInterface
-from pyrekordbox import Rekordbox6Database
-from track_interface.cuepoint_engines.stft_change_point_engine import (
-    StftChangePointEngine,
-    StftChangePointParams,
-)
-from typing import Tuple
-from tqdm import tqdm
-from itertools import product
+import collections
+import math
 import multiprocessing
+# Temp Ignore warnings
+import warnings
+from itertools import product
+from typing import List, Tuple
+
 import librosa
 import numpy as np
 import ruptures as rpt
-from typing import List
-import collections
-import math
+from pyrekordbox import Rekordbox6Database
+from tqdm import tqdm
 
-
-# Temp Ignore warnings
-import warnings
+from track_interface.cuepoint_engines.stft_change_point_engine import (
+    StftChangePointEngine, StftChangePointParams)
+from track_interface.track_interface import TrackInterface
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 

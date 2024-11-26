@@ -8,11 +8,13 @@ pyrekordbox = "*"
 setuptools = "*"
 ruptures = "*"
 librosa = "*"
-ruff = "*"
 tqdm = "*"
+pyqt5 = "*"
 
 [dev-packages]
 ipykernel = "*"
+ruff = "*"
+isort = "*"
 
 [requires]
 python_version = "3.12"

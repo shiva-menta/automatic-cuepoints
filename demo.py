@@ -1,6 +1,7 @@
 import collections
 import math
 import multiprocessing
+
 # Temp Ignore warnings
 import warnings
 from itertools import product
@@ -13,7 +14,9 @@ from pyrekordbox import Rekordbox6Database
 from tqdm import tqdm
 
 from track_interface.cuepoint_engines.stft_change_point_engine import (
-    StftChangePointEngine, StftChangePointParams)
+    StftChangePointEngine,
+    StftChangePointParams,
+)
 from track_interface.track_interface import TrackInterface
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -351,8 +354,8 @@ def fine_tune_stft():
 
 
 def main():
-    # get_error_metrics()
-    add_cuepoints_to_test_data()
+    get_error_metrics()
+    # add_cuepoints_to_test_data()
     # fine_tune_stft()
 
 

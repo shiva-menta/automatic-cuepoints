@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from pyrekordbox import Rekordbox6Database
+from pyrekordbox import Rekordbox6Database, get_config
 
 from track_interface.cuepoint_engines.stft_change_point_engine import (
     StftChangePointEngine,
@@ -67,6 +67,7 @@ class AutocuepointsGUI(QWidget):
         self.progress_bar = QProgressBar(self)
         self.progress_bar.resize(300, 40)
         self.progress_bar.setHidden(True)
+        # self.debug_label = QLabel(f"{get_config("rekordbox6")}")
 
         self.encryption_box = QLineEdit(self)
         self.playlist_box = QLineEdit(self)
@@ -82,6 +83,7 @@ class AutocuepointsGUI(QWidget):
         self.form_layout.addWidget(self.action_box)
         self.form_layout.addWidget(self.status_label)
         self.form_layout.addWidget(self.progress_bar)
+        # self.form_layout.addWidget(self.debug_label)
 
         self.action_button = QPushButton("Take Action", self)
         self.action_button.clicked.connect(self.action)
@@ -103,14 +105,17 @@ class AutocuepointsGUI(QWidget):
                 else Rekordbox6Database()
             )
             db.get_playlist(Name=playlist).one()
+            self.progress_bar.setValue(0)
             self.progress_bar.setHidden(False)
 
             self.worker_thread = WorkerThread(encryption_key, playlist, mode)
             self.worker_thread.progress_changed.connect(self.update_progress_bar)
             self.worker_thread.finished.connect(self.on_task_finished)
             self.worker_thread.start()
-        except Exception:
+        except Exception as e:
             self.status_label.setHidden(False)
+            self.status_label.setText(str(e))
+            print(e)
 
     def update_progress_bar(self, value):
         self.progress_bar.setValue(value)

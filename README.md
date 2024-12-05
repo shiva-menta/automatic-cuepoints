@@ -1,6 +1,10 @@
 # automatic-cuepoints
 Software to automatically place cue points on tracks for easier mixing.
 
-## Steps
 
-1: Fetch encryption key for Rekordbox db.
+## Building App
+We use PyInstaller to build a simple Mac app for this program.
+
+```
+pyinstaller app.spec --noconfirm && mkdir dist/Autocuepoints.app/Contents/Frameworks/pyrekordbox
+```

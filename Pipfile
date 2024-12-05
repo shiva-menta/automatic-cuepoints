@@ -10,6 +10,8 @@ ruptures = "*"
 librosa = "*"
 tqdm = "*"
 pyqt5 = "*"
+pyinstaller = "*"
+sqlcipher3-wheels = "*"
 
 [dev-packages]
 ipykernel = "*"

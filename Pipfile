@@ -12,6 +12,8 @@ tqdm = "*"
 pyqt5 = "*"
 pyinstaller = "*"
 sqlcipher3-wheels = "*"
+matplotlib = "*"
+demucs = "*"
 
 [dev-packages]
 ipykernel = "*"

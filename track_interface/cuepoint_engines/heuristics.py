@@ -58,7 +58,7 @@ class RestrictedMeasureIncrements(Heuristic):
       is within MEASURE_ADJUSTMENT_TOLERANCE.
     """
 
-    MEASURE_ADJUSTMENT_TOLERANCE = 1
+    MEASURE_ADJUSTMENT_TOLERANCE = 2
 
     @staticmethod
     def closest_powers_of_two(prev_measure: int, curr_measure: int) -> Tuple[int, int]:

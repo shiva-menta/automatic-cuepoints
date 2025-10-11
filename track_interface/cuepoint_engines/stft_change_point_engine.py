@@ -20,6 +20,8 @@ from track_interface.cuepoint_engines.heuristics import (
     SongStartCuepoint,
 )
 
+from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid
+
 
 @dataclass(frozen=True)
 class StftChangePointParams:
@@ -46,15 +48,15 @@ class StftChangePointEngine(ChangePointEngine):
             smoothing_window_size=0,
         )
 
-    def _generate_frequency_data(self) -> List[List[float]]:
+    def _generate_frequency_data(self, file_path) -> List[List[float]]:
         """
         Use STFT (Short Time Fourier Transform) to separate audio signal into XX frequency
         buckets.
 
         Temporarily adding cache layer.
         """
-        mag_cache_key = convert_to_key("mag_" + self.file_path)
-        freqs_cache_key = convert_to_key("freq_" + self.file_path)
+        mag_cache_key = convert_to_key("mag_" + file_path)
+        freqs_cache_key = convert_to_key("freq_" + file_path)
 
         magnitude = freqs = None
         if CACHE_ENABLED:
@@ -62,7 +64,7 @@ class StftChangePointEngine(ChangePointEngine):
             freqs = get(freqs_cache_key)
 
         if magnitude is None or freqs is None:
-            y, sr = librosa.load(self.file_path, sr=None)
+            y, sr = librosa.load(file_path, sr=None)
             n_fft = 2048
             stft_result = librosa.stft(y, n_fft=n_fft, hop_length=512)
             magnitude = np.abs(stft_result)
@@ -129,9 +131,9 @@ class StftChangePointEngine(ChangePointEngine):
 
         return smoothed_freq_buckets_to_signal
 
-    def generate_cuepoints(self) -> List[int]:
-        freq_bucket_to_signal = self._generate_frequency_data()
-        song_length = librosa.get_duration(path=self.file_path) * 1000.0
+    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
+        freq_bucket_to_signal = self._generate_frequency_data(file_path)
+        song_length = librosa.get_duration(path=file_path) * 1000.0
         sample_size_msecs = song_length / len(freq_bucket_to_signal[0])
         change_points = self._change_point_detection(
             freq_bucket_to_signal,
@@ -140,7 +142,7 @@ class StftChangePointEngine(ChangePointEngine):
         )
 
         # Heuristics
-        first_beat_timestamps = self._get_first_beat_timestamps()
+        first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [
             FirstBeatsOnly,
             SongStartCuepoint,

@@ -5,12 +5,14 @@ import ruptures as rpt
 
 from track_interface.cuepoint_engines.changepoint_engine import ChangePointEngine
 
+from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid
+
 HOP_LENGTH = 1024
 
 
 class TempogramChangePointEngine(ChangePointEngine):
-    def _get_tempogram(self):
-        y, sr = librosa.load(self.file_path, sr=None)
+    def _get_tempogram(self, file_path):
+        y, sr = librosa.load(file_path, sr=None)
         oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP_LENGTH)
 
         return librosa.feature.tempogram(
@@ -43,8 +45,8 @@ class TempogramChangePointEngine(ChangePointEngine):
         bkps = model.predict(n_bkps=opt_num_bkps)
         return librosa.frames_to_time(bkps, sr=sr, hop_length=HOP_LENGTH)
 
-    def generate_cuepoints(self) -> List[int]:
-        tempogram, sr = self._get_tempogram()
+    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
+        tempogram, sr = self._get_tempogram(file_path)
         change_points = self._change_point_detection(tempogram, sr)
         first_beat_change_points = self._convert_changepoints_to_first_beats(
             change_points

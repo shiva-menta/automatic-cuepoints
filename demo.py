@@ -21,10 +21,6 @@ from track_interface.cuepoint_engines.trends_engine import (
     TrendsEngine,
     TrendsEngineParams
 )
-from track_interface.cuepoint_engines.claude_engine import (
-    ClaudeEngine,
-    ClaudeEngineParams
-)
 from track_interface.cuepoint_engines.ml_engine import (
     MLEngine,
     MLEngineParams

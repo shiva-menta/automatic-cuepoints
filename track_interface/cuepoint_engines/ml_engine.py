@@ -26,6 +26,8 @@ from track_interface.cuepoint_engines.heuristics import (
     SongStartCuepoint,
 )
 
+from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid
+
 
 @dataclass(frozen=True)
 class MLEngineParams:
@@ -63,10 +65,10 @@ class MLEngine(ChangePointEngine):
             n_estimators=100,
         )
 
-    def _get_audio_data(self) -> Tuple[np.ndarray, int]:
+    def _get_audio_data(self, file_path) -> Tuple[np.ndarray, int]:
         """Load audio data with caching."""
-        audio_cache_key = convert_to_key("audio_" + self.file_path)
-        sr_cache_key = convert_to_key("sr_" + self.file_path)
+        audio_cache_key = convert_to_key("audio_" + file_path)
+        sr_cache_key = convert_to_key("sr_" + file_path)
 
         y = sr = None
         if CACHE_ENABLED:
@@ -74,7 +76,7 @@ class MLEngine(ChangePointEngine):
             sr = get(sr_cache_key)
 
         if y is None or sr is None:
-            y, sr = librosa.load(self.file_path, sr=None)
+            y, sr = librosa.load(file_path, sr=None)
 
             if CACHE_ENABLED:
                 put(audio_cache_key, y)
@@ -82,10 +84,10 @@ class MLEngine(ChangePointEngine):
 
         return y, sr
 
-    def _get_stft_data(self) -> Tuple[np.ndarray, np.ndarray, int]:
+    def _get_stft_data(self, file_path) -> Tuple[np.ndarray, np.ndarray, int]:
         """Get STFT magnitude and frequency data with caching."""
-        mag_cache_key = convert_to_key("mag_" + self.file_path)
-        freqs_cache_key = convert_to_key("freq_" + self.file_path)
+        mag_cache_key = convert_to_key("mag_" + file_path)
+        freqs_cache_key = convert_to_key("freq_" + file_path)
 
         magnitude = freqs = None
         if CACHE_ENABLED:
@@ -214,7 +216,7 @@ class MLEngine(ChangePointEngine):
 
         return np.array(features, dtype=np.float32)
 
-    def extract_all_features(self) -> Tuple[np.ndarray, List[int]]:
+    def extract_all_features(self, file_path) -> Tuple[np.ndarray, List[int]]:
         """
         Extract features for all measures in the song.
         Returns: (feature_matrix, measure_timestamps)
@@ -224,9 +226,9 @@ class MLEngine(ChangePointEngine):
         if len(first_beat_timestamps) < 2:
             return np.array([]), []
 
-        y, sr = self._get_audio_data()
-        magnitude, freqs, sr = self._get_stft_data()
-        song_length_ms = librosa.get_duration(path=self.file_path) * 1000.0
+        y, sr = self._get_audio_data(file_path)
+        magnitude, freqs, sr = self._get_stft_data(file_path)
+        song_length_ms = librosa.get_duration(path=file_path) * 1000.0
 
         all_features = []
         measure_timestamps = []
@@ -254,7 +256,7 @@ class MLEngine(ChangePointEngine):
 
         return np.array(all_features), measure_timestamps
 
-    def generate_cuepoints(self) -> List[int]:
+    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
         """Generate cuepoints using trained ML model."""
         if not XGBOOST_AVAILABLE:
             raise ImportError("XGBoost is not installed. Please install with: pip install xgboost")
@@ -271,7 +273,7 @@ class MLEngine(ChangePointEngine):
             model = pickle.load(f)
 
         # Extract features
-        X, measure_timestamps = self.extract_all_features()
+        X, measure_timestamps = self.extract_all_features(file_path)
 
         if len(X) == 0:
             return []
@@ -287,7 +289,7 @@ class MLEngine(ChangePointEngine):
         ]
 
         # Apply heuristics
-        first_beat_timestamps = self._get_first_beat_timestamps()
+        first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [
             FirstBeatsOnly,
             SongStartCuepoint,

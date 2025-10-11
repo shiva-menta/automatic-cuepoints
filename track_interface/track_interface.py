@@ -29,8 +29,6 @@ class TrackInterface:
         self.content_uuid = self.song_content.UUID
         self.db = db
         self.cuepoint_engine = cuepoint_engine(
-            file_path=self.get_content_filepath(),
-            beat_grid=self.read_beat_grid(),
             params=engine_params,
         )
 
@@ -272,7 +270,8 @@ class TrackInterface:
 
     def generate_cuepoints(self) -> None:
         self.clear_hot_cues()
-        cuepoint_timestamps = self.cuepoint_engine.generate_cuepoints()
+        cuepoint_timestamps = self.cuepoint_engine.generate_cuepoints(file_path=self.get_content_filepath(),
+                                                                      beat_grid=self.read_beat_grid())
         cuepoint_objs = [
             self.get_djmd_cue(timestamp, kind=idx + 1)
             for idx, timestamp in enumerate(cuepoint_timestamps)
@@ -281,7 +280,8 @@ class TrackInterface:
         self.add_hot_cues(cuepoint_objs)
 
     def get_cuepoint_engine_performance_metrics(self) -> Dict[str, int]:
-        estimated_cuepoints = self.cuepoint_engine.generate_cuepoints()
+        estimated_cuepoints = self.cuepoint_engine.generate_cuepoints(file_path=self.get_content_filepath(),
+                                                                      beat_grid=self.read_beat_grid())
         labeled_cuepoints = self.read_hot_cues()
 
         estimated_idx = labeled_idx = 0

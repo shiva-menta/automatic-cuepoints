@@ -20,6 +20,8 @@ from track_interface.cuepoint_engines.heuristics import (
     SongStartCuepoint,
 )
 
+from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid
+
 
 class Trend(Enum):
     INCREASING = "increasing"
@@ -68,13 +70,13 @@ class TrendsEngine(ChangePointEngine):
             level_threshold=0.20,  # 10% threshold
         )
 
-    def _get_stft_data(self) -> Tuple[np.ndarray, np.ndarray]:
+    def _get_stft_data(self, file_path) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get STFT magnitude and frequency data, using cache if available.
         Returns: (magnitude, freqs)
         """
-        mag_cache_key = convert_to_key("mag_" + self.file_path)
-        freqs_cache_key = convert_to_key("freq_" + self.file_path)
+        mag_cache_key = convert_to_key("mag_" + file_path)
+        freqs_cache_key = convert_to_key("freq_" + file_path)
 
         magnitude = freqs = None
         if CACHE_ENABLED:
@@ -82,7 +84,7 @@ class TrendsEngine(ChangePointEngine):
             freqs = get(freqs_cache_key)
 
         if magnitude is None or freqs is None:
-            y, sr = librosa.load(self.file_path, sr=None)
+            y, sr = librosa.load(file_path, sr=None)
             n_fft = 2048
             stft_result = librosa.stft(y, n_fft=n_fft, hop_length=512)
             magnitude = np.abs(stft_result)
@@ -220,19 +222,19 @@ class TrendsEngine(ChangePointEngine):
 
         return sections
 
-    def generate_cuepoints(self) -> List[int]:
+    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
         """
         Generate cuepoints based on trend changes in frequency bands.
         """
         # Get first beat timestamps
-        first_beat_timestamps = self._get_first_beat_timestamps()
+        first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
 
         if len(first_beat_timestamps) < 2:
             return [first_beat_timestamps[0]] if first_beat_timestamps else []
 
         # Get STFT data
-        magnitude, freqs = self._get_stft_data()
-        song_length_ms = librosa.get_duration(path=self.file_path) * 1000.0
+        magnitude, freqs = self._get_stft_data(file_path)
+        song_length_ms = librosa.get_duration(path=file_path) * 1000.0
 
         # Analyze each measure
         measure_trends = []

@@ -17,6 +17,18 @@ from track_interface.cuepoint_engines.stft_change_point_engine import (
     StftChangePointEngine,
     StftChangePointParams,
 )
+from track_interface.cuepoint_engines.trends_engine import (
+    TrendsEngine,
+    TrendsEngineParams
+)
+from track_interface.cuepoint_engines.claude_engine import (
+    ClaudeEngine,
+    ClaudeEngineParams
+)
+from track_interface.cuepoint_engines.ml_engine import (
+    MLEngine,
+    MLEngineParams
+)
 from track_interface.track_interface import TrackInterface
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)

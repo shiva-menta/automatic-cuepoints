@@ -14,6 +14,8 @@ pyinstaller = "*"
 sqlcipher3-wheels = "*"
 matplotlib = "*"
 demucs = "*"
+xgboost = "*"
+scikit-learn = "*"
 
 [dev-packages]
 ipykernel = "*"

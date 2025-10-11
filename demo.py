@@ -5,13 +5,15 @@ import multiprocessing
 # Temp Ignore warnings
 import warnings
 from itertools import product
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import librosa
 import numpy as np
 import ruptures as rpt
 from pyrekordbox import Rekordbox6Database
 from tqdm import tqdm
+
+from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 
 from track_interface.cuepoint_engines.stft_change_point_engine import (
     StftChangePointEngine,
@@ -29,14 +31,45 @@ from track_interface.track_interface import TrackInterface
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+_DEFAULT_CUEPOINT_ENGINE = StftChangePointEngine()
+
 
 def add_cuepoints_to_test_data():
     db = Rekordbox6Database()
     cuepoint_playlist = db.get_playlist(Name="test_data").one()
 
     for song in tqdm(cuepoint_playlist.Songs):
-        ti = TrackInterface(song, db, StftChangePointEngine)
-        ti.generate_cuepoints()
+        ti = TrackInterface(song, db)
+        ti.generate_cuepoints(cuepoint_timestamps=_DEFAULT_CUEPOINT_ENGINE.generate_cuepoints(ti.get_content_filepath(),
+                                                                                              ti.read_beat_grid()))
+
+
+def get_cuepoint_engine_performance_metrics(cuepoint_engine: CuepointEngine, hot_cues, file_path, beat_grid) -> Dict[str, int]:
+    estimated_cuepoints = cuepoint_engine.generate_cuepoints(file_path=file_path,
+                                                             beat_grid=beat_grid)
+    labeled_cuepoints = hot_cues
+
+    estimated_idx = labeled_idx = 0
+    tp = fp = fn = 0
+    while estimated_idx < len(estimated_cuepoints) and labeled_idx < len(
+        labeled_cuepoints
+    ):
+        est_cp, lab_cp = (
+            estimated_cuepoints[estimated_idx],
+            labeled_cuepoints[labeled_idx],
+        )
+        if est_cp == lab_cp:
+            tp += 1
+            estimated_idx += 1
+            labeled_idx += 1
+        elif est_cp > lab_cp:
+            fn += 1
+            labeled_idx += 1
+        else:
+            fp += 1
+            estimated_idx += 1
+
+    return {"true_positive": tp, "false_positive": fp, "false_negative": fn}
 
 
 def get_error_metrics():
@@ -46,8 +79,12 @@ def get_error_metrics():
     # Calculate Aggregate Error Metrics
     metrics = {key: 0 for key in ["true_positive", "false_positive", "false_negative"]}
     for song in tqdm(cuepoint_playlist.Songs):
-        ti = TrackInterface(song, db, StftChangePointEngine)
-        for k, v in ti.get_cuepoint_engine_performance_metrics().items():
+        ti = TrackInterface(song, db)
+        track_metrics = get_cuepoint_engine_performance_metrics(
+            _DEFAULT_CUEPOINT_ENGINE, ti.read_hot_cues(),
+            ti.get_content_filepath(),
+            ti.read_beat_grid())
+        for k, v in track_metrics.items():
             metrics[k] += v
 
     print(metrics)
@@ -293,7 +330,7 @@ def fine_tune_stft():
     print("Launching tasks.")
     param_tasks = []
     for song in tqdm(cuepoint_playlist.Songs):
-        ti = TrackInterface(song, db, StftChangePointEngine)
+        ti = TrackInterface(song, db)
         file_path = ti.get_content_filepath()
         y, sr = librosa.load(file_path, sr=None)
         n_fft = 2048

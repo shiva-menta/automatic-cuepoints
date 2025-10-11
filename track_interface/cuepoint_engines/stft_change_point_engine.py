@@ -137,7 +137,7 @@ class StftChangePointEngine(ChangePointEngine):
         sample_size_msecs = song_length / len(freq_bucket_to_signal[0])
         change_points = self._change_point_detection(
             freq_bucket_to_signal,
-            self._get_min_changepoint_distance(sample_size_msecs),
+            self._get_min_changepoint_distance(sample_size_msecs, beat_grid),
             sample_size_msecs,
         )
 

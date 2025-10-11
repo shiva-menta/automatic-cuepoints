@@ -4,7 +4,7 @@ BeatGrid = List[Tuple[int, float, int]]
 
 
 class CuepointEngine:
-    def __init__(self, params):
+    def __init__(self, params=None):
         self.params = params if params else self._get_default_params()
 
     def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:

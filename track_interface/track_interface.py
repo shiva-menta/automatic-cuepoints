@@ -6,31 +6,24 @@ from uuid import uuid4
 from pyrekordbox.anlz import AnlzFile
 from pyrekordbox.db6 import ContentCue, DjmdCue, DjmdSongPlaylist
 
-from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
-
 
 class TrackInterface:
     """
     Custom class for interacting with all data related to a specific song.
     """
 
-    def __init__(self, song, db, cuepoint_engine, engine_params=None):
+    def __init__(self, song, db):
         """
         Song needs to be of format DjmdSongPlaylist.
         """
         if not isinstance(song, DjmdSongPlaylist):
             raise TypeError("Song arg is not of type DjmdSongPlaylist.")
-        if not issubclass(cuepoint_engine, CuepointEngine):
-            raise TypeError("Passed in cuepoint engine is not of type CuepointEngine.")
 
         self.song = song
         self.song_content = song.Content
         self.content_id = self.song_content.ID
         self.content_uuid = self.song_content.UUID
         self.db = db
-        self.cuepoint_engine = cuepoint_engine(
-            params=engine_params,
-        )
 
     def read_beat_grid(self) -> List[Tuple[int, float, int]]:
         # Tuple[0] = Beat Number (1-4)
@@ -268,40 +261,12 @@ class TrackInterface:
 
         return cuepoints
 
-    def generate_cuepoints(self) -> None:
+    def generate_cuepoints(self, cuepoint_timestamps) -> None:
         self.clear_hot_cues()
-        cuepoint_timestamps = self.cuepoint_engine.generate_cuepoints(file_path=self.get_content_filepath(),
-                                                                      beat_grid=self.read_beat_grid())
+
         cuepoint_objs = [
             self.get_djmd_cue(timestamp, kind=idx + 1)
             for idx, timestamp in enumerate(cuepoint_timestamps)
         ]
         cuepoint_objs = self._color_label_cuepoints(cuepoint_objs)
         self.add_hot_cues(cuepoint_objs)
-
-    def get_cuepoint_engine_performance_metrics(self) -> Dict[str, int]:
-        estimated_cuepoints = self.cuepoint_engine.generate_cuepoints(file_path=self.get_content_filepath(),
-                                                                      beat_grid=self.read_beat_grid())
-        labeled_cuepoints = self.read_hot_cues()
-
-        estimated_idx = labeled_idx = 0
-        tp = fp = fn = 0
-        while estimated_idx < len(estimated_cuepoints) and labeled_idx < len(
-            labeled_cuepoints
-        ):
-            est_cp, lab_cp = (
-                estimated_cuepoints[estimated_idx],
-                labeled_cuepoints[labeled_idx],
-            )
-            if est_cp == lab_cp:
-                tp += 1
-                estimated_idx += 1
-                labeled_idx += 1
-            elif est_cp > lab_cp:
-                fn += 1
-                labeled_idx += 1
-            else:
-                fp += 1
-                estimated_idx += 1
-
-        return {"true_positive": tp, "false_positive": fp, "false_negative": fn}

@@ -38,14 +38,12 @@ def extract_training_data(db, playlist_name: str = "training_data") -> Tuple[np.
     all_labels = []
 
     print(f"Extracting features from {len(playlist.Songs)} songs...")
+    ml_engine = MLEngine()
 
     for song in tqdm(playlist.Songs):
         try:
             # Create TrackInterface to properly access song data
-            ti = TrackInterface(song, db, MLEngine)
-
-            # The cuepoint_engine is already instantiated by TrackInterface
-            ml_engine = ti.cuepoint_engine
+            ti = TrackInterface(song, db)
 
             # Extract features for all measures
             X_song, measure_timestamps = ml_engine.extract_all_features()

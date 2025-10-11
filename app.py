@@ -37,11 +37,13 @@ class WorkerThread(QThread):
             else Rekordbox6Database()
         )
         playlist = db.get_playlist(Name=self.playlist).one()
+        cuepoint_engine = StftChangePointEngine()
 
         for idx, song in enumerate(playlist.Songs):
-            ti = TrackInterface(song, db, StftChangePointEngine)
+            ti = TrackInterface(song, db)
             if self.mode == "Add Cuepoints":
-                ti.generate_cuepoints()
+                ti.generate_cuepoints(cuepoint_timestamps=cuepoint_engine.generate_cuepoints(ti.get_content_filepath(),
+                                                                                             ti.read_beat_grid()))
             else:
                 ti.clear_hot_cues()
 

@@ -31,7 +31,7 @@ from track_interface.track_interface import TrackInterface
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-_DEFAULT_CUEPOINT_ENGINE = StftChangePointEngine()
+_DEFAULT_CUEPOINT_ENGINE = StftChangePointEngine
 
 
 def add_cuepoints_to_test_data():
@@ -44,7 +44,8 @@ def add_cuepoints_to_test_data():
                                                                                               ti.read_beat_grid()))
 
 
-def get_cuepoint_engine_performance_metrics(cuepoint_engine: CuepointEngine, hot_cues, file_path, beat_grid) -> Dict[str, int]:
+def get_cuepoint_engine_performance_metrics(hot_cues, file_path, beat_grid) -> Dict[str, int]:
+    cuepoint_engine = _DEFAULT_CUEPOINT_ENGINE()
     estimated_cuepoints = cuepoint_engine.generate_cuepoints(file_path=file_path,
                                                              beat_grid=beat_grid)
     labeled_cuepoints = hot_cues
@@ -72,18 +73,41 @@ def get_cuepoint_engine_performance_metrics(cuepoint_engine: CuepointEngine, hot
     return {"true_positive": tp, "false_positive": fp, "false_negative": fn}
 
 
+def _process_song_metrics(song_data: Tuple) -> Dict[str, int]:
+    """Worker function to process a single song's metrics."""
+    file_path, beat_grid, hot_cues = song_data
+    return get_cuepoint_engine_performance_metrics(
+        hot_cues, file_path, beat_grid
+    )
+
+
 def get_error_metrics():
     db = Rekordbox6Database()
     cuepoint_playlist = db.get_playlist(Name="training_data").one()
 
-    # Calculate Aggregate Error Metrics
-    metrics = {key: 0 for key in ["true_positive", "false_positive", "false_negative"]}
-    for song in tqdm(cuepoint_playlist.Songs):
+    # Prepare data for parallel processing
+    songs_data = []
+    for song in cuepoint_playlist.Songs:
         ti = TrackInterface(song, db)
-        track_metrics = get_cuepoint_engine_performance_metrics(
-            _DEFAULT_CUEPOINT_ENGINE, ti.read_hot_cues(),
+        songs_data.append((
             ti.get_content_filepath(),
-            ti.read_beat_grid())
+            ti.read_beat_grid(),
+            ti.read_hot_cues(),
+        ))
+
+    # Calculate Aggregate Error Metrics using parallel processing
+    num_processes = multiprocessing.cpu_count() // 2
+    metrics = {key: 0 for key in ["true_positive", "false_positive", "false_negative"]}
+
+    with multiprocessing.Pool(processes=num_processes) as pool:
+        results = list(tqdm(
+            pool.imap(_process_song_metrics, songs_data),
+            total=len(songs_data),
+            desc="Processing songs"
+        ))
+
+    # Aggregate results
+    for track_metrics in results:
         for k, v in track_metrics.items():
             metrics[k] += v
 

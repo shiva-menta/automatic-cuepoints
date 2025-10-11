@@ -1,5 +1,6 @@
 import sys
 import time
+import multiprocessing
 
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -19,6 +20,15 @@ from track_interface.cuepoint_engines.stft_change_point_engine import (
 )
 from track_interface.track_interface import TrackInterface
 
+from typing import Tuple, Dict, List
+
+
+def _process_song_metrics(song_data: Tuple) -> Tuple[str, List[int]]:
+    """Worker function to generate cuepoints for single track."""
+    file_path, beat_grid = song_data
+    cuepoint_engine = StftChangePointEngine()
+    return (file_path, cuepoint_engine.generate_cuepoints(file_path=file_path, beat_grid=beat_grid))
+
 
 class WorkerThread(QThread):
     progress_changed = pyqtSignal(int)
@@ -37,17 +47,35 @@ class WorkerThread(QThread):
             else Rekordbox6Database()
         )
         playlist = db.get_playlist(Name=self.playlist).one()
-        cuepoint_engine = StftChangePointEngine()
 
-        for idx, song in enumerate(playlist.Songs):
+        songs_data = []
+        filepath_to_interface: Dict[str, TrackInterface] = {}
+        for song in playlist.Songs:
             ti = TrackInterface(song, db)
+            filepath = ti.get_content_filepath()
+            songs_data.append((
+                filepath,
+                ti.read_beat_grid(),
+            ))
+            filepath_to_interface[filepath] = ti
+
+        results = []
+        if self.mode == "Add Cuepoints":
+            num_processes = multiprocessing.cpu_count() // 2
+            with multiprocessing.Pool(processes=num_processes) as pool:
+                results = list(
+                    pool.imap(_process_song_metrics, songs_data)
+                )
+
+        filepath_to_cuepoints = {filepath: cuepoints for (filepath, cuepoints) in results}
+
+        for count, (filepath, ti) in enumerate(filepath_to_interface.items(), start=1):
             if self.mode == "Add Cuepoints":
-                ti.generate_cuepoints(cuepoint_timestamps=cuepoint_engine.generate_cuepoints(ti.get_content_filepath(),
-                                                                                             ti.read_beat_grid()))
+                ti.generate_cuepoints(cuepoint_timestamps=filepath_to_cuepoints[filepath])
             else:
                 ti.clear_hot_cues()
 
-            progress = int((idx + 1) * 100.0 / len(playlist.Songs))
+            progress = int(count * 100.0 / len(playlist.Songs))
             self.progress_changed.emit(progress)
 
         self.finished.emit()
@@ -128,6 +156,7 @@ class AutocuepointsGUI(QWidget):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     app = QApplication(sys.argv)
     w = AutocuepointsGUI()
     app.exec()

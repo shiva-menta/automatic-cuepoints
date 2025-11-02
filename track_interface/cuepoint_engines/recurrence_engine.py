@@ -25,6 +25,7 @@ from dataclasses import dataclass
 import os
 import io
 import base64
+from scipy.signal import find_peaks
 
 
 @dataclass(frozen=True)
@@ -374,7 +375,7 @@ class RecurrenceEngine(ChangePointEngine):
                                  linewidth=diagonal_linewidth, alpha=diagonal_alpha)
 
         # Plot changepoint timestamps as vertical and horizontal lines
-        if changepoint_timestamps:
+        if changepoint_timestamps is not None and len(changepoint_timestamps) > 0:
             for timestamp in changepoint_timestamps:
                 # Convert from milliseconds to seconds if needed (check if values are > 1000)
                 time_seconds = timestamp / 1000.0 if timestamp > 1000 else timestamp
@@ -397,10 +398,115 @@ class RecurrenceEngine(ChangePointEngine):
     def get_nearest_neighbors(self, file_path: str) -> Any:
         pass
 
+    def find_significant_novelty_curve_peaks(self, recurrence_matrix: Any, beat_grid: BeatGrid) -> List[int]:
+        """
+        Uses novelty curve approach along the main diagonal to find any strong signs of musical section changes.
+        """
+        # generate checkerboard kernel
+        def get_gaussian_checkerboard_kernel(kernel_size: int, sigma: float = None):
+            M = kernel_size
+            if sigma is None:
+                sigma = M / 6.0
+
+            # Create 1D Gaussian window
+            x = np.arange(M) - (M - 1) / 2.0
+            gaussian_1d = np.exp(-0.5 * (x / sigma) ** 2)
+
+            # Create 2D Gaussian window via outer product
+            kernel = np.outer(gaussian_1d, gaussian_1d)
+
+            # Apply checkerboard pattern
+            kernel[:M//2, :M//2] *= 1
+            kernel[M//2:, M//2:] *= 1
+            kernel[:M//2, M//2:] *= -1
+            kernel[M//2:, :M//2] *= -1
+            return kernel
+
+        # this needs to be fixed based on measures / bpm / min measure size / etc. (probably a fine tunable-parameter)
+        kernel_size = self.measure_offset_to_frame(beat_grid, 8)
+        kernel = get_gaussian_checkerboard_kernel(kernel_size)
+
+        # get novelty graph
+        def novelty_times_from_matrix(R_smooth, kernel):
+            """
+            Computes novelty curve from recurrence matrix using checkerboard kernel convolution.
+
+            Returns:
+                tuple: (boundary_times, boundary_frames, novelty_times, novelty_curve)
+            """
+            # Pad matrix for boundary handling
+            pad_size = kernel_size // 2
+            R_padded = np.pad(R_smooth, pad_size, mode='constant', constant_values=0)
+
+            # Compute novelty by convolving kernel along diagonal
+            original_size = R_smooth.shape[0]
+            novelty = np.array([
+                np.sum(R_padded[i:i+kernel_size, i:i+kernel_size] * kernel)
+                for i in range(original_size)
+            ])
+
+            # Clip negative values
+            novelty = np.maximum(novelty, 0)
+
+            # Smooth with moving average
+            window_size = 50
+            novelty = np.convolve(novelty, np.ones(window_size)/window_size, mode='same')
+
+            # Normalize
+            novelty = novelty / (novelty.max() + 1e-10)
+
+            # Remove spurious spikes with median filter
+            from scipy.ndimage import median_filter
+            novelty = median_filter(novelty, size=15)
+
+            # Convert frame indices to time
+            novelty_times = librosa.frames_to_time(
+                np.arange(len(novelty)),
+                sr=self.params.sample_rate,
+                hop_length=self.params.hop_length
+            )
+
+            # Detect peaks with restrictive thresholds (want to be super restrictive here)
+            prominence_threshold = np.percentile(novelty, 75) * 0.6
+
+            peaks, _ = find_peaks(
+                novelty,
+                distance=50,
+                prominence=prominence_threshold,
+                width=5,
+                height=0.3
+            )
+
+            # Convert peak frames to timestamps
+            boundary_times = librosa.frames_to_time(
+                peaks,
+                sr=self.params.sample_rate,
+                hop_length=self.params.hop_length
+            )
+
+            return boundary_times, peaks, novelty_times, novelty
+
+        boundary_times_novelty, boundary_frames_novelty, novelty_times, novelty = novelty_times_from_matrix(recurrence_matrix, kernel)
+
+        # correct measure counts
+
+        self.visualize_diagonals(recurrence_matrix, changepoint_timestamps=boundary_times_novelty,
+                                 output_path="/Users/shivamenta/Desktop/novelty.png")
+
+        # find very strong peaks
+        return []
+
     def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
         recurrence_matrix = self.get_recurrence_matrix(file_path)
-        song_length = librosa.get_duration(path=file_path) * 1000.0
-        change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
+
+        # Intra-Section Similarity
+        self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
+
+        # Inter-Section Similarity
+        change_points = []
+        # change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
+
+        # Section Merging (account for over-splitting)
 
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [

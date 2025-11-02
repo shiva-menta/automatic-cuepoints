@@ -41,7 +41,7 @@
 - If we are unsure about some section, you should just merge the sections.
 - I think to make this work effectively, we realistically need some sort of compound algorithm that uses multiple techniques:
   - Recurrence analysis.
-  - Maybe novelty curve detection (if it shares any LARGE) spikes - could use this as hints.
+  - Maybe novelty curve detection (if it shares any LARGE) spikes - could use this as hints for self-similarity.
   - Measure by measure similarity scores.
 - Few strategies to look into today.
   - Improve longest diagonal with a tolerance measure (look at Leetcode algo).
@@ -49,9 +49,14 @@
   - How to handle cases that have square-like diagonal patterns (intra-section similarity) - not considering these? How to choose the right one?
   - If you need to do exhaustive search, how can you narrow down the search space.
 
-## Process Simplification To-Do
-- Add demo / playground mode on recurrence engine as a param that we use for testing. This should be a mode for all your engines.
-- Refactor demo.py to use parser module for simpler testing (commenting back and forth is a pain).
+## Next
+- Start-working on intra-section similarity.
+  - Let's try novelty curve approach as an estimator.
+    - This seems to be pretty good at finding ALL possible boundaries within main diagonal
+  - Corner detection in graph + limit search space with black.
+
+## Process To-Do
+- Pending :o
 
 ## Progress
 - No-Tolerance Off-Diagonal Approach (0.072 F1 Score)

@@ -20,7 +20,7 @@ import librosa
 import math
 import statistics
 from collections import defaultdict
-from typing import List, Literal, Any, Tuple
+from typing import List, Literal, Any, Tuple, Optional
 from dataclasses import dataclass
 import os
 import io
@@ -33,6 +33,7 @@ class RecurrenceEngineParams:
     hop_length: int
     n_mfcc: int
     diagonal_tolerance: float
+    debug_mode: bool
 
 
 class RecurrenceEngine(ChangePointEngine):
@@ -40,18 +41,22 @@ class RecurrenceEngine(ChangePointEngine):
     Recurrence engine that primarily relies on finding 'visual' patterns in
     recurrence matrices using MFCC.
     """
+    params: RecurrenceEngineParams
 
-    def _get_default_params(self) -> RecurrenceEngineParams:
-        return RecurrenceEngineParams(
-            # Recurrence matrix parameters (from visualizer.ipynb)
-            sample_rate=1000,
-            hop_length=50,
-            n_mfcc=13,
-            diagonal_tolerance=0.15,
-        )
+    def __init__(self, params=Optional[RecurrenceEngineParams]):
+        if params:
+            self.params = params
+        else:
+            self.params = RecurrenceEngineParams(
+                sample_rate=1000,
+                hop_length=50,
+                n_mfcc=13,
+                diagonal_tolerance=0.15,
+                debug_mode=False,
+            )
 
     def get_recurrence_matrix(self, file_path: str) -> Any:
-        params = self._get_default_params()
+        params = self.params
         # Load audio file
         y, sr = librosa.load(file_path, sr=params.sample_rate)
 
@@ -156,8 +161,7 @@ class RecurrenceEngine(ChangePointEngine):
         # TODO
         # 4. Because recurrence matrix is symmetrical, you can just take the first cuepoints and translate
 
-        # params
-        _params = self._get_default_params()
+        _params = self.params
 
         def measure_offset_to_frame(num_measures):
             return self.measure_offset_to_frame(
@@ -335,7 +339,7 @@ class RecurrenceEngine(ChangePointEngine):
             changepoint_linewidth: Width of changepoint lines (default: 2)
             changepoint_alpha: Transparency of changepoint lines (default: 0.7)
         """
-        params = self._get_default_params()
+        params = self.params
 
         # Create figure
         plt.figure(figsize=(10, 8))

@@ -33,7 +33,7 @@ _ENGINE_MAP: Dict[str, CuepointEngine] = {
     "genai": GenAIEngine,
 }
 
-_DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/MPH - One Sixty.mp3"
+_DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/Time.mp3"
 
 
 def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, List[int]]:
@@ -129,7 +129,7 @@ def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
                 sample_rate=1000,
                 hop_length=50,
                 n_mfcc=13,
-                diagonal_tolerance=0.15,
+                diagonal_tolerance=0.05,
                 debug_mode=debug_mode,
                 manual_k=True,
             )
@@ -193,7 +193,7 @@ def get_error_metrics(args):
     top_fn = sorted(song_metrics, key=lambda x: x[1]["false_negative"], reverse=True)[:5]
 
     print(f"Metrics: {metrics}")
-    print(f"Score: {get_metrics_f1_score(metrics)}")
+    print(f"Score: {get_metrics_fbeta_score(metrics, beta=0.75)}")
 
     print("\nTop 5 songs with highest false positives:")
     for file_path, track_metrics in top_fp:
@@ -206,25 +206,20 @@ def get_error_metrics(args):
     return metrics
 
 
-def get_metrics_f1_score(metrics):
-    precision = (
-        metrics["true_positive"]
-        * 1.0
-        / (metrics["true_positive"] + metrics["false_positive"])
-        if (metrics["true_positive"] + metrics["false_positive"])
-        else 1
-    )
-    recall = (
-        metrics["true_positive"]
-        * 1.0
-        / (metrics["true_positive"] + metrics["false_negative"])
-        if (metrics["true_positive"] + metrics["false_negative"])
-        else 1
-    )
+def get_metrics_fbeta_score(metrics, beta=1.0):
+    tp = metrics["true_positive"]
+    fp = metrics["false_positive"]
+    fn = metrics["false_negative"]
 
-    return (
-        (2 * precision * recall) / (precision + recall) if (precision + recall) else 0
-    )
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+
+    if precision + recall == 0:
+        return 0
+
+    beta_sq = beta ** 2
+    fbeta = (1 + beta_sq) * (precision * recall) / ((beta_sq * precision) + recall)
+    return fbeta
 
 
 def main():

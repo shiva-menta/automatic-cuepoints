@@ -73,10 +73,7 @@ class RecurrenceEngine(ChangePointEngine):
         }
         if self.params.manual_k:
             # we should scale based on song length (make some prediction about repeated sections based on song length - try to limit based on this assumption)
-            if song_length <= 240:
-                arguments["k"] = 500
-            else:
-                arguments["k"] = 750
+            arguments["k"] = 400
 
         # Compute recurrence matrix using MFCC features (assumes a knn value)
         recurrence_matrix = librosa.segment.recurrence_matrix(**arguments)
@@ -501,9 +498,9 @@ class RecurrenceEngine(ChangePointEngine):
         boundary_times_novelty, boundary_frames_novelty, novelty_times, novelty = novelty_times_from_matrix(recurrence_matrix, kernel)
 
         # correct measure counts
-
-        self.visualize_diagonals(recurrence_matrix, changepoint_timestamps=boundary_times_novelty,
-                                 output_path="/Users/shivamenta/Desktop/novelty.png")
+        if self.params.debug_mode:
+            self.visualize_diagonals(recurrence_matrix, changepoint_timestamps=boundary_times_novelty,
+                                     output_path="/Users/shivamenta/Desktop/novelty.png")
 
         # find very strong peaks
         return []

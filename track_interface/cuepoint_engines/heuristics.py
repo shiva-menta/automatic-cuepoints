@@ -41,6 +41,8 @@ class FirstBeatsOnly(Heuristic):
     def apply(
         first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
     ) -> List[int]:
+        if not cuepoint_timestamps:
+            return []
         return [
             FirstBeatsOnly._get_closest_timestamp_to_target(
                 first_beat_timestamps, cuepoint
@@ -73,6 +75,8 @@ class RestrictedMeasureIncrements(Heuristic):
     def apply(
         first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
     ) -> List[int]:
+        if not cuepoint_timestamps:
+            return []
         timestamp_to_measure = {
             timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
         }
@@ -140,6 +144,8 @@ class SongStartCuepoint(Heuristic):
     def apply(
         first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
     ) -> List[int]:
+        if not cuepoint_timestamps:
+            return []
         timestamp_to_measure = {
             timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
         }
@@ -174,6 +180,8 @@ class FirstBeatCuepoint(Heuristic):
     def apply(
         first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
     ) -> List[int]:
+        if not cuepoint_timestamps:
+            return []
         if cuepoint_timestamps[0] != first_beat_timestamps[0]:
             return first_beat_timestamps[:1] + cuepoint_timestamps
         return cuepoint_timestamps
@@ -188,6 +196,8 @@ class SongEndCuepoint(Heuristic):
     def apply(
         first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
     ) -> List[int]:
+        if not cuepoint_timestamps:
+            return []
         if cuepoint_timestamps[-1] == first_beat_timestamps[-1]:
             cuepoint_timestamps.pop()
         return cuepoint_timestamps

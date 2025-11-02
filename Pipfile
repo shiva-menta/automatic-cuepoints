@@ -16,6 +16,10 @@ matplotlib = "*"
 demucs = "*"
 xgboost = "*"
 scikit-learn = "*"
+opencv-python = "*"
+audio-separator = {extras = ["cpu"], version = "*"}
+anthropic = "*"
+google-generativeai = "*"
 
 [dev-packages]
 ipykernel = "*"

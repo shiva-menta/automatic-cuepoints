@@ -56,7 +56,8 @@
   - Corner detection in graph + limit search space with black.
 
 ## Process To-Do
-- Pending :o
+- Recurrence Matrix params experimentation.
+  - Right now k scales with the square root of input size - this doesn't make sense - it should be roughly linearly since longer track generally means
 
 ## Progress
 - No-Tolerance Off-Diagonal Approach (0.072 F1 Score)

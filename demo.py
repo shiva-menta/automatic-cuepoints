@@ -131,6 +131,7 @@ def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
                 n_mfcc=13,
                 diagonal_tolerance=0.15,
                 debug_mode=debug_mode,
+                manual_k=True,
             )
 
     model_inst = _ENGINE_MAP[model_str](params=params)

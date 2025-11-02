@@ -35,6 +35,7 @@ class RecurrenceEngineParams:
     n_mfcc: int
     diagonal_tolerance: float
     debug_mode: bool
+    manual_k: bool
 
 
 class RecurrenceEngine(ChangePointEngine):
@@ -54,19 +55,31 @@ class RecurrenceEngine(ChangePointEngine):
                 n_mfcc=13,
                 diagonal_tolerance=0.15,
                 debug_mode=False,
+                manual_k=False,
             )
 
     def get_recurrence_matrix(self, file_path: str) -> Any:
         y, sr = librosa.load(file_path, sr=self.params.sample_rate)
+        song_length = librosa.get_duration(y=y, sr=sr)
 
         # Extract MFCC features
         mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=self.params.hop_length)
 
+        arguments = {
+            "data": mfcc,
+            "metric": "cosine",
+            "mode": "affinity",
+            "sym": True,
+        }
+        if self.params.manual_k:
+            # we should scale based on song length (make some prediction about repeated sections based on song length - try to limit based on this assumption)
+            if song_length <= 240:
+                arguments["k"] = 500
+            else:
+                arguments["k"] = 750
+
         # Compute recurrence matrix using MFCC features (assumes a knn value)
-        recurrence_matrix = librosa.segment.recurrence_matrix(mfcc,
-                                                              metric='cosine',
-                                                              mode='affinity',
-                                                              sym=True)
+        recurrence_matrix = librosa.segment.recurrence_matrix(**arguments)
 
         with open("/Users/shivamenta/Desktop/tmp.txt", "w") as f:
             f.writelines(",".join(map(lambda x: str(x), row)) + "\n" for row in recurrence_matrix)
@@ -167,7 +180,6 @@ class RecurrenceEngine(ChangePointEngine):
         first_beat_frame_idxs = self.get_first_beat_frame_idxs(beat_grid)
 
         if self.params.debug_mode:
-            print(f"Matrix size (frames): {mat_size}")
             print(f"Start frame offset (measures): {_start_frame_idx_offset}")
             print(f"Min frame diagonal length (frames): {_min_diagonal_measure_length}")
 
@@ -498,13 +510,15 @@ class RecurrenceEngine(ChangePointEngine):
 
     def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
         recurrence_matrix = self.get_recurrence_matrix(file_path)
+        if self.params.debug_mode:
+            print(f"Matrix size (frames): {len(recurrence_matrix)}")
 
         # Intra-Section Similarity
-        self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
+        # self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
 
         # Inter-Section Similarity
-        change_points = []
-        # change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
+        # change_points = []
+        change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
 
         # Section Merging (account for over-splitting)
 

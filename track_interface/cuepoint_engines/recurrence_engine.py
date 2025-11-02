@@ -72,11 +72,6 @@ class RecurrenceEngine(ChangePointEngine):
 
         return recurrence_matrix
 
-    # precision really matters here - we want to make sure these are super precise
-    # this means that all measure related functions need to work on beat grid
-    # want to operate ON beatgrid
-
-    # current usecase is just for offset - can describe offset
     def measure_offset_to_frame(self, beat_grid: BeatGrid, measure_offset: int):
         seconds = self.measure_offset_to_seconds(beat_grid, measure_offset)
         return int(librosa.time_to_frames(
@@ -170,14 +165,10 @@ class RecurrenceEngine(ChangePointEngine):
         mat_size = len(recurrence_matrix)
         first_beat_frame_idxs = self.get_first_beat_frame_idxs(beat_grid)
 
-        # print(first_beat_frame_idxs)
-
-        # print(f"Matrix size (frames): {mat_size}")
-        # print(f"Start frame offset (measures): {_start_frame_idx_offset}")
-        # print(f"Min frame diagonal length (frames): {_min_diagonal_measure_length}")
-
-        # calculate diagonal positions
-        # need to adjust this to keep track of multiple diagonals (all beyond a specific threshhold)
+        if self.params.debug_mode:
+            print(f"Matrix size (frames): {mat_size}")
+            print(f"Start frame offset (measures): {_start_frame_idx_offset}")
+            print(f"Min frame diagonal length (frames): {_min_diagonal_measure_length}")
 
         # accounts for the fact that not all diagonals are perfectly constructed (sampling issues, small variations, etc.)
         tolerance = int(self.params.diagonal_tolerance * _min_diagonal_measure_length)
@@ -231,13 +222,9 @@ class RecurrenceEngine(ChangePointEngine):
         longest_diagonal_at_y_idx = filter_for_min_diagonal_length(longest_diagonal_at_y_idx)
         longest_diagonal_at_x_idx = filter_for_min_diagonal_length(longest_diagonal_at_x_idx)
 
-        # print([(idx, val) for idx, val in enumerate(longest_diagonal_at_y_idx)])
-        # print([(idx, val) for idx, val in enumerate(longest_diagonal_at_y_idx)])
-
         # get diagonal idxs for graphing
         diagonal_y_idxs = [first_beat_frame_idxs[idx] for idx, (_, diag_len) in enumerate(longest_diagonal_at_y_idx) if diag_len != 0]
         diagonal_x_idxs = [first_beat_frame_idxs[idx] for idx, (_, diag_len) in enumerate(longest_diagonal_at_x_idx) if diag_len != 0]
-        # get starts and lengths
         diag_starts_and_sizes = set()
 
         def add_starts_and_sizes(longest_diagonals):
@@ -259,7 +246,8 @@ class RecurrenceEngine(ChangePointEngine):
         add_starts_and_sizes(longest_diagonal_at_y_idx)
         add_starts_and_sizes(longest_diagonal_at_x_idx)
 
-        # print(diag_starts_and_sizes)
+        if self.params.debug_mode:
+            print(f"All Measure (Start, Duration) Pairs: {diag_starts_and_sizes}")
 
         # voting algorithm on measures and lengths
         # basically what I want to do is a peak finding algorithm where x axis is the measure (first value), y axis is the count (second value)
@@ -275,7 +263,8 @@ class RecurrenceEngine(ChangePointEngine):
             peak_4 = round(peak / 4) * 4 + 1
             changepoint_starts_and_sizes.append((peak_4, closest_multiple_of_4))
 
-        # print(changepoint_starts_and_sizes)
+        if self.params.debug_mode:
+            print(f"Corrected Measure (Start, Duration) Pairs: {changepoint_starts_and_sizes}")
 
         # also probably need to not round measures to int (maybe tenth of a decimal place - we lose a lot of precision otherwise)
         # general logic - if you're exact at the power of two measurements (or 1 off), then stick with current power of two
@@ -292,7 +281,8 @@ class RecurrenceEngine(ChangePointEngine):
                                               measure_offset=diag_start + diag_len)])
         timestamps_seconds.sort()
 
-        # self.visualize_diagonals(recurrence_matrix, list(diagonal_y_idxs), list(diagonal_x_idxs), timestamps_seconds)
+        if self.params.debug_mode:
+            self.visualize_diagonals(recurrence_matrix, list(diagonal_y_idxs), list(diagonal_x_idxs), timestamps_seconds)
 
         return [timestamp * 1000.0 for timestamp in timestamps_seconds]
 

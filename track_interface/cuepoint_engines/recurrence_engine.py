@@ -56,12 +56,10 @@ class RecurrenceEngine(ChangePointEngine):
             )
 
     def get_recurrence_matrix(self, file_path: str) -> Any:
-        params = self.params
-        # Load audio file
-        y, sr = librosa.load(file_path, sr=params.sample_rate)
+        y, sr = librosa.load(file_path, sr=self.params.sample_rate)
 
         # Extract MFCC features
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=params.hop_length)
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=self.params.hop_length)
 
         # Compute recurrence matrix using MFCC features (assumes a knn value)
         recurrence_matrix = librosa.segment.recurrence_matrix(mfcc,
@@ -79,24 +77,24 @@ class RecurrenceEngine(ChangePointEngine):
     # want to operate ON beatgrid
 
     # current usecase is just for offset - can describe offset
-    def measure_offset_to_frame(self, params: RecurrenceEngineParams, beat_grid: BeatGrid, measure_offset: int):
-        seconds = self.measure_offset_to_seconds(params, beat_grid, measure_offset)
+    def measure_offset_to_frame(self, beat_grid: BeatGrid, measure_offset: int):
+        seconds = self.measure_offset_to_seconds(beat_grid, measure_offset)
         return int(librosa.time_to_frames(
             [seconds],
-            sr=params.sample_rate,
-            hop_length=params.hop_length,
+            sr=self.params.sample_rate,
+            hop_length=self.params.hop_length,
         )[0])
 
-    def frames_to_measure_offset(self, params: RecurrenceEngineParams, beat_grid: BeatGrid, frame_offset: int):
+    def frames_to_measure_offset(self, beat_grid: BeatGrid, frame_offset: int):
         seconds = librosa.frames_to_time(
             [frame_offset],
-            sr=params.sample_rate,
-            hop_length=params.hop_length,
+            sr=self.params.sample_rate,
+            hop_length=self.params.hop_length,
         )[0] * 1000.0
         first_beats = self._get_first_beat_timestamps(beat_grid)
         return bisect.bisect_left(first_beats, seconds)
 
-    def measure_offset_to_seconds(self, params: RecurrenceEngineParams, beat_grid: BeatGrid, measure_offset: int):
+    def measure_offset_to_seconds(self, beat_grid: BeatGrid, measure_offset: int):
         return self._get_first_beat_timestamps(beat_grid)[measure_offset - 1] / 1000.0
 
     def find_local_maxima_peaks(self, data, aggregation='sum', cluster_tolerance=2, selection='center'):
@@ -147,25 +145,21 @@ class RecurrenceEngine(ChangePointEngine):
 
         return [peak["x"] for peak in sorted(peaks, key=lambda p: p['value'], reverse=True)]
 
-    def get_first_beat_frame_idxs(self, params: RecurrenceEngineParams, beat_grid: BeatGrid) -> List[int]:
+    def get_first_beat_frame_idxs(self, beat_grid: BeatGrid) -> List[int]:
         first_beats = self._get_first_beat_timestamps(beat_grid)
         first_beats_seconds = [beat / 1000.0 for beat in first_beats]
 
         return librosa.time_to_frames(
             first_beats_seconds,
-            sr=params.sample_rate,
-            hop_length=params.hop_length,
+            sr=self.params.sample_rate,
+            hop_length=self.params.hop_length,
         )
 
     def find_off_main_diagonals(self, recurrence_matrix: Any, beat_grid: BeatGrid) -> List[int]:
         # TODO
         # 4. Because recurrence matrix is symmetrical, you can just take the first cuepoints and translate
-
-        _params = self.params
-
         def measure_offset_to_frame(num_measures):
             return self.measure_offset_to_frame(
-                params=_params,
                 beat_grid=beat_grid,
                 measure_offset=num_measures
             )
@@ -174,7 +168,7 @@ class RecurrenceEngine(ChangePointEngine):
         # not supposed to be an offset, but this is a fine enough metric
         _min_diagonal_measure_length = measure_offset_to_frame(4)
         mat_size = len(recurrence_matrix)
-        first_beat_frame_idxs = self.get_first_beat_frame_idxs(_params, beat_grid)
+        first_beat_frame_idxs = self.get_first_beat_frame_idxs(beat_grid)
 
         # print(first_beat_frame_idxs)
 
@@ -186,7 +180,7 @@ class RecurrenceEngine(ChangePointEngine):
         # need to adjust this to keep track of multiple diagonals (all beyond a specific threshhold)
 
         # accounts for the fact that not all diagonals are perfectly constructed (sampling issues, small variations, etc.)
-        tolerance = int(_params.diagonal_tolerance * _min_diagonal_measure_length)
+        tolerance = int(self.params.diagonal_tolerance * _min_diagonal_measure_length)
 
         def get_longest_diagonals(recurrence_matrix, y_axes_based=True, tolerance=10) -> List[Tuple[int, int]]:
             num_first_beats = len(first_beat_frame_idxs)
@@ -253,12 +247,10 @@ class RecurrenceEngine(ChangePointEngine):
                 diag_starts_and_sizes.add(
                     (
                         self.frames_to_measure_offset(
-                            params=_params,
                             beat_grid=beat_grid,
                             frame_offset=diag_start
                         ),
                         self.frames_to_measure_offset(
-                            params=_params,
                             beat_grid=beat_grid,
                             frame_offset=diag_len
                         )
@@ -294,11 +286,9 @@ class RecurrenceEngine(ChangePointEngine):
         timestamps_seconds = []
         for (diag_start, diag_len) in changepoint_starts_and_sizes:
             timestamps_seconds.extend([self.measure_offset_to_seconds(
-                params=_params,
                 beat_grid=beat_grid,
                 measure_offset=diag_start
-            ), self.measure_offset_to_seconds(params=_params,
-                                              beat_grid=beat_grid,
+            ), self.measure_offset_to_seconds(beat_grid=beat_grid,
                                               measure_offset=diag_start + diag_len)])
         timestamps_seconds.sort()
 
@@ -339,8 +329,6 @@ class RecurrenceEngine(ChangePointEngine):
             changepoint_linewidth: Width of changepoint lines (default: 2)
             changepoint_alpha: Transparency of changepoint lines (default: 0.7)
         """
-        params = self.params
-
         # Create figure
         plt.figure(figsize=(10, 8))
 
@@ -350,8 +338,8 @@ class RecurrenceEngine(ChangePointEngine):
             x_axis='time',
             y_axis='time',
             cmap='hot',
-            sr=params.sample_rate,
-            hop_length=params.hop_length
+            sr=self.params.sample_rate,
+            hop_length=self.params.hop_length
         )
         plt.colorbar(label='Affinity')
         plt.title('MFCC Recurrence Matrix with Diagonals')
@@ -359,14 +347,14 @@ class RecurrenceEngine(ChangePointEngine):
         plt.ylabel('Time (s)')
 
         mat_size = len(recurrence_matrix)
-        max_duration = librosa.frames_to_time(mat_size - 1, sr=params.sample_rate, hop_length=params.hop_length)
+        max_duration = librosa.frames_to_time(mat_size - 1, sr=self.params.sample_rate, hop_length=self.params.hop_length)
 
         # Plot diagonal lines for each y_start index (diagonals starting from y-axis)
         if y_start_indices:
             for y_start in y_start_indices:
                 if 0 <= y_start < mat_size:
                     # Convert frame indices to time
-                    y_start_time = librosa.frames_to_time(y_start, sr=params.sample_rate, hop_length=params.hop_length)
+                    y_start_time = librosa.frames_to_time(y_start, sr=self.params.sample_rate, hop_length=self.params.hop_length)
 
                     # Calculate diagonal endpoints
                     # Diagonal has slope 1: y_time = x_time + y_start_time
@@ -383,7 +371,7 @@ class RecurrenceEngine(ChangePointEngine):
             for x_start in x_start_indices:
                 if 0 <= x_start < mat_size:
                     # Convert frame indices to time
-                    x_start_time = librosa.frames_to_time(x_start, sr=params.sample_rate, hop_length=params.hop_length)
+                    x_start_time = librosa.frames_to_time(x_start, sr=self.params.sample_rate, hop_length=self.params.hop_length)
 
                     # Calculate diagonal endpoints
                     # Diagonal has slope 1: y_time = x_time + offset, where x starts at x_start_time

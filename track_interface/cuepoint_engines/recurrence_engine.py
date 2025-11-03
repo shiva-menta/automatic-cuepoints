@@ -68,7 +68,7 @@ class RecurrenceEngine(ChangePointEngine):
         arguments = {
             "data": mfcc,
             "metric": "cosine",
-            "mode": "affinity",
+            "mode": "connectivity",
             "sym": True,
         }
         if self.params.manual_k:
@@ -272,9 +272,25 @@ class RecurrenceEngine(ChangePointEngine):
             closest_multiple_of_4 = math.ceil(avg_freq / 4) * 4
             peak_4 = round(peak / 4) * 4 + 1
             changepoint_starts_and_sizes.append((peak_4, closest_multiple_of_4))
+        changepoint_starts_and_sizes.sort()
 
         if self.params.debug_mode:
             print(f"Corrected Measure (Start, Duration) Pairs: {changepoint_starts_and_sizes}")
+
+        # subsume diagonals
+        # could adapt this into another voting scheme - if there's any overlap, go with the most voted option
+        subsumed_starts_and_sizes = [(-1, 0)]
+        for (start, size) in changepoint_starts_and_sizes:
+            prev_st, prev_sz = subsumed_starts_and_sizes[-1]
+            prev_l, prev_r = prev_st, prev_st + prev_sz
+            if prev_l <= start and (start + size) <= prev_r:
+                continue
+            subsumed_starts_and_sizes.append((start, size))
+
+        subsumed_starts_and_sizes = subsumed_starts_and_sizes[1:]
+
+        if self.params.debug_mode:
+            print(f"Subsumed Measure (Start, Duration) Pairs: {subsumed_starts_and_sizes}")
 
         # also probably need to not round measures to int (maybe tenth of a decimal place - we lose a lot of precision otherwise)
         # general logic - if you're exact at the power of two measurements (or 1 off), then stick with current power of two
@@ -283,7 +299,7 @@ class RecurrenceEngine(ChangePointEngine):
 
         # convert to changepoint timestamps
         timestamps_seconds = []
-        for (diag_start, diag_len) in changepoint_starts_and_sizes:
+        for (diag_start, diag_len) in subsumed_starts_and_sizes:
             timestamps_seconds.extend([self.measure_offset_to_seconds(
                 beat_grid=beat_grid,
                 measure_offset=diag_start
@@ -415,7 +431,8 @@ class RecurrenceEngine(ChangePointEngine):
         def get_gaussian_checkerboard_kernel(kernel_size: int, sigma: float = None):
             M = kernel_size
             if sigma is None:
-                sigma = M / 6.0
+                sigma = M / 8.0  # CHANGED: Was M/6.0, now M/8.0 for sharper kernel
+                # Even sharper: try M/10.0
 
             # Create 1D Gaussian window
             x = np.arange(M) - (M - 1) / 2.0
@@ -429,11 +446,54 @@ class RecurrenceEngine(ChangePointEngine):
             kernel[M//2:, M//2:] *= 1
             kernel[:M//2, M//2:] *= -1
             kernel[M//2:, :M//2] *= -1
+
+            # OPTIONAL: Normalize to emphasize contrast
+            kernel = kernel / np.abs(kernel).max()
+
+            return kernel
+
+        def get_checkerboard_kernel(kernel_size: int):
+            """Simple binary checkerboard - no Gaussian smoothing."""
+            M = kernel_size
+            kernel = np.ones((M, M))
+
+            # Apply checkerboard pattern
+            kernel[:M//2, :M//2] = 1
+            kernel[M//2:, M//2:] = 1
+            kernel[:M//2, M//2:] = -1
+            kernel[M//2:, :M//2] = -1
+
+            return kernel
+
+        def get_frame_kernel(kernel_size: int):
+            """
+            Kernel that only looks at the boundaries between quadrants,
+            ignoring the noisy interior.
+            """
+            M = kernel_size
+            kernel = np.zeros((M, M))
+
+            frame_width = max(M // 8, 2)  # Width of the frame to examine
+            mid = M // 2
+
+            # Top-left quadrant frame (just the edges near the boundary)
+            kernel[mid-frame_width:mid, mid-frame_width:mid] = 1
+
+            # Bottom-right quadrant frame
+            kernel[mid:mid+frame_width, mid:mid+frame_width] = 1
+
+            # Top-right quadrant frame (negative)
+            kernel[mid-frame_width:mid, mid:mid+frame_width] = -1
+
+            # Bottom-left quadrant frame (negative)
+            kernel[mid:mid+frame_width, mid-frame_width:mid] = -1
+
             return kernel
 
         # this needs to be fixed based on measures / bpm / min measure size / etc. (probably a fine tunable-parameter)
-        kernel_size = self.measure_offset_to_frame(beat_grid, 8)
-        kernel = get_gaussian_checkerboard_kernel(kernel_size)
+        # picking 7 as kernel size to properly captuer 8-measure changes
+        kernel_size = self.measure_offset_to_frame(beat_grid, 7)
+        kernel = get_checkerboard_kernel(kernel_size)
 
         # get novelty graph
         def novelty_times_from_matrix(R_smooth, kernel):
@@ -465,8 +525,8 @@ class RecurrenceEngine(ChangePointEngine):
             novelty = novelty / (novelty.max() + 1e-10)
 
             # Remove spurious spikes with median filter
-            from scipy.ndimage import median_filter
-            novelty = median_filter(novelty, size=15)
+            # from scipy.ndimage import median_filter
+            # novelty = median_filter(novelty, size=15)
 
             # Convert frame indices to time
             novelty_times = librosa.frames_to_time(
@@ -501,9 +561,25 @@ class RecurrenceEngine(ChangePointEngine):
         if self.params.debug_mode:
             self.visualize_diagonals(recurrence_matrix, changepoint_timestamps=boundary_times_novelty,
                                      output_path="/Users/shivamenta/Desktop/novelty.png")
+            plt.figure(figsize=(12, 3))
+            plt.plot(novelty_times, novelty)
+            plt.xlabel('Time (s)')
+            plt.ylabel('Novelty')
+            plt.title('Novelty Curve')
+            for bt in boundary_times_novelty:
+                plt.axvline(bt, color='green', linestyle='--', alpha=0.7)
+            plt.savefig('/Users/shivamenta/Desktop/novelty_curve.png')
 
-        # find very strong peaks
-        return []
+        # times to measures
+        # measures to times
+        boundary_measures_novelty = [
+            self.frames_to_measure_offset(beat_grid, frame) for frame in boundary_frames_novelty
+        ]
+        boundary_times_novelty = [
+            self.measure_offset_to_seconds(beat_grid, measure) for measure in boundary_measures_novelty
+        ]
+
+        return [timestamp * 1000.0 for timestamp in boundary_times_novelty]
 
     def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
         recurrence_matrix = self.get_recurrence_matrix(file_path)
@@ -511,14 +587,13 @@ class RecurrenceEngine(ChangePointEngine):
             print(f"Matrix size (frames): {len(recurrence_matrix)}")
 
         # Intra-Section Similarity
-        # self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
+        change_points = self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
 
         # Inter-Section Similarity
         # change_points = []
-        change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
+        # change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
 
         # Section Merging (account for over-splitting)
-
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [
             FirstBeatsOnly,

@@ -69,3 +69,5 @@
   - 0.10 ({'true_positive': 89, 'false_positive': 199, 'false_negative': 800}, F1 Score: 0.15123194562446898)
   - 0.15 ({'true_positive': 93, 'false_positive': 225, 'false_negative': 796}, F1 Score: 0.15410107705053852)
   - 0.20 ({'true_positive': 103, 'false_positive': 261, 'false_negative': 786}, F1 Score: 0.16440542697525937)
+- Changing to f-beta score (0.75) to more heavily penalize false-positives.
+- Switching to pure novelty-curve approach ({'true_positive': 192, 'false_positive': 945, 'false_negative': 697}, F1 Score: 0.18325506814797846)

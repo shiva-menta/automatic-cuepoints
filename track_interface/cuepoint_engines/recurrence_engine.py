@@ -292,6 +292,13 @@ class RecurrenceEngine(ChangePointEngine):
         if self.params.debug_mode:
             print(f"Subsumed Measure (Start, Duration) Pairs: {subsumed_starts_and_sizes}")
 
+            all_measures = set()
+            for (start, size) in subsumed_starts_and_sizes:
+                all_measures.add(start)
+                all_measures.add(start + size)
+
+            print(f"Inter-section similarity: {sorted(list(all_measures))}")
+
         # also probably need to not round measures to int (maybe tenth of a decimal place - we lose a lot of precision otherwise)
         # general logic - if you're exact at the power of two measurements (or 1 off), then stick with current power of two
         # otherwise, go to next power of two if you're at least reaching into that territory
@@ -575,6 +582,7 @@ class RecurrenceEngine(ChangePointEngine):
         boundary_measures_novelty = [
             self.frames_to_measure_offset(beat_grid, frame) for frame in boundary_frames_novelty
         ]
+        print(f"Intra Measures {boundary_measures_novelty}")
         boundary_times_novelty = [
             self.measure_offset_to_seconds(beat_grid, measure) for measure in boundary_measures_novelty
         ]
@@ -587,11 +595,11 @@ class RecurrenceEngine(ChangePointEngine):
             print(f"Matrix size (frames): {len(recurrence_matrix)}")
 
         # Intra-Section Similarity
-        change_points = self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
+        intra_change_points = self.find_significant_novelty_curve_peaks(recurrence_matrix, beat_grid)
 
         # Inter-Section Similarity
         # change_points = []
-        # change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
+        inter_change_points = self.find_off_main_diagonals(recurrence_matrix, beat_grid)
 
         # Section Merging (account for over-splitting)
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
@@ -600,6 +608,6 @@ class RecurrenceEngine(ChangePointEngine):
             # SongStartCuepoint,
             SongEndCuepoint,
         ]:
-            change_points = heuristic.apply(first_beat_timestamps, change_points)
+            change_points = heuristic.apply(first_beat_timestamps, intra_change_points)
 
         return change_points

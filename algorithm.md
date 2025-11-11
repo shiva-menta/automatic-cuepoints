@@ -71,3 +71,4 @@
   - 0.20 ({'true_positive': 103, 'false_positive': 261, 'false_negative': 786}, F1 Score: 0.16440542697525937)
 - Changing to f-beta score (0.75) to more heavily penalize false-positives.
 - Switching to pure novelty-curve approach ({'true_positive': 192, 'false_positive': 945, 'false_negative': 697}, F1 Score: 0.18325506814797846)
+- Seems like a lot of errors in 

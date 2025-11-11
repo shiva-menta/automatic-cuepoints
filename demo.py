@@ -33,7 +33,7 @@ _ENGINE_MAP: Dict[str, CuepointEngine] = {
     "genai": GenAIEngine,
 }
 
-_DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/will.i.am - #thatPOWER ft. Justin Bieber (Audio).mp3"
+_DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/Anti Up - Chromatic (Official Audio).mp3"
 
 
 def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, List[int]]:

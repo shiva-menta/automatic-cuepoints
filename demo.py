@@ -22,6 +22,9 @@ from track_interface.cuepoint_engines.recurrence_engine import (
     RecurrenceEngine,
     RecurrenceEngineParams
 )
+from track_interface.cuepoint_engines.dynamic_programming_engine import (
+    DynamicProgrammingEngine
+)
 
 from track_interface.track_interface import TrackInterface
 
@@ -31,6 +34,7 @@ _ENGINE_MAP: Dict[str, CuepointEngine] = {
     "recurrence": RecurrenceEngine,
     "stft": StftChangePointEngine,
     "genai": GenAIEngine,
+    "dynamic_programming": DynamicProgrammingEngine
 }
 
 _DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/Anti Up - Chromatic (Official Audio).mp3"

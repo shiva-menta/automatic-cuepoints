@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pipenv run:*)",
+      "Bash(brew install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

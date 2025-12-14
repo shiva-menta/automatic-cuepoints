@@ -9,7 +9,7 @@ setuptools = "*"
 ruptures = "*"
 librosa = "*"
 tqdm = "*"
-pyqt5 = "*"
+pyqt5 = {version = "*", markers = "sys_platform == 'darwin'"}
 pyinstaller = "*"
 sqlcipher3-wheels = "*"
 matplotlib = "*"
@@ -20,6 +20,11 @@ opencv-python = "*"
 audio-separator = {extras = ["cpu"], version = "*"}
 anthropic = "*"
 google-generativeai = "*"
+modal = "*"
+torch = ">=2.5.0,<2.6.0"
+torchvision = "*"
+madmom = {git = "https://github.com/CPJKU/madmom"}
+allin1 = "*"
 
 [dev-packages]
 ipykernel = "*"

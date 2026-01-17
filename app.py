@@ -1,162 +1,724 @@
+import os
 import sys
-import time
 import multiprocessing
+from enum import Enum
 
-from PyQt5.QtCore import QThread, pyqtSignal
+# Get the directory where this script is located (handles PyInstaller bundling)
+if getattr(sys, 'frozen', False):
+    SCRIPT_DIR = sys._MEIPASS
+else:
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODAL_ICON_PATH = os.path.join(SCRIPT_DIR, "Modal-IconMark.png")
+
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QPainter, QColor, QPixmap
 from PyQt5.QtWidgets import (
     QApplication,
     QComboBox,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QProgressBar,
     QPushButton,
+    QRadioButton,
+    QButtonGroup,
     QVBoxLayout,
     QWidget,
+    QToolButton,
+    QSizePolicy,
 )
-from pyrekordbox import Rekordbox6Database, get_config
 
-from track_interface.cuepoint_engines.stft_change_point_engine import (
-    StftChangePointEngine,
-)
-from track_interface.track_interface import TrackInterface
-
-from typing import Tuple, Dict, List
+from typing import List
 
 
-def _process_song_metrics(song_data: Tuple) -> Tuple[str, List[int]]:
-    """Worker function to generate cuepoints for single track."""
-    file_path, beat_grid = song_data
-    cuepoint_engine = StftChangePointEngine()
-    return (file_path, cuepoint_engine.generate_cuepoints(file_path=file_path, beat_grid=beat_grid))
+# =============================================================================
+# Enums
+# =============================================================================
+
+class DeploymentStatus(Enum):
+    IDLE = "idle"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
-class WorkerThread(QThread):
+class ModelType(Enum):
+    LOCAL = "local"
+    REMOTE = "remote"
+
+
+# =============================================================================
+# Stub Functions - Fill these out
+# =============================================================================
+
+def deploy_to_modal(api_key: str) -> bool:
+    """
+    Deploy to Modal cloud.
+
+    Args:
+        api_key: The Modal API key
+
+    Returns:
+        True if deployment succeeded, False otherwise
+    """
+    # TODO: Implement actual Modal deployment
+    pass
+
+
+def fetch_rekordbox_playlists(encryption_key: str) -> List[str]:
+    """
+    Fetch available playlists from Rekordbox database.
+
+    Args:
+        encryption_key: The Rekordbox database encryption key (can be empty)
+
+    Returns:
+        List of playlist names
+    """
+    # TODO: Implement actual playlist fetching
+    return []
+
+
+def process_cuepoints_add(encryption_key: str, playlist: str, model_type: ModelType, progress_callback) -> None:
+    """
+    Add cuepoints to all tracks in the playlist.
+
+    Args:
+        encryption_key: The Rekordbox database encryption key
+        playlist: The playlist name to process
+        model_type: LOCAL or REMOTE model
+        progress_callback: Function to call with progress (0-100)
+    """
+    # TODO: Implement cuepoint addition logic
+    pass
+
+
+def process_cuepoints_clear(encryption_key: str, playlist: str, progress_callback) -> None:
+    """
+    Clear cuepoints from all tracks in the playlist.
+
+    Args:
+        encryption_key: The Rekordbox database encryption key
+        playlist: The playlist name to process
+        progress_callback: Function to call with progress (0-100)
+    """
+    # TODO: Implement cuepoint clearing logic
+    pass
+
+
+# =============================================================================
+# Custom Widgets
+# =============================================================================
+
+class StatusIndicator(QWidget):
+    """A colored circle indicator for deployment status."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._status = DeploymentStatus.IDLE
+        self.setFixedSize(16, 16)
+
+    def set_status(self, status: DeploymentStatus):
+        self._status = status
+        self.update()
+
+    def get_status(self) -> DeploymentStatus:
+        return self._status
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        colors = {
+            DeploymentStatus.IDLE: QColor(128, 128, 128),      # Gray
+            DeploymentStatus.SUCCESS: QColor(76, 175, 80),     # Green
+            DeploymentStatus.FAILED: QColor(244, 67, 54),      # Red
+        }
+
+        painter.setBrush(colors[self._status])
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(2, 2, 12, 12)
+
+
+class CollapsibleSection(QWidget):
+    """A collapsible section widget with header and content."""
+
+    def __init__(self, title: str, parent=None, header_widget: QWidget = None, icon_path: str = None):
+        super().__init__(parent)
+
+        self._is_expanded = False
+
+        # Main layout
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
+
+        # Header row (button + optional widget)
+        self.header_row = QWidget()
+        self.header_row.setStyleSheet("background-color: #e0e0e0; border-radius: 4px;")
+        header_row_layout = QHBoxLayout(self.header_row)
+        header_row_layout.setContentsMargins(0, 0, 8, 0)
+        header_row_layout.setSpacing(4)
+
+        # Header button
+        self.header_button = QToolButton()
+        self.header_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.header_button.setArrowType(Qt.RightArrow)
+        self.header_button.setText(title)
+        self.header_button.setCheckable(True)
+        self.header_button.setChecked(False)
+        self.header_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.header_button.setStyleSheet("""
+            QToolButton {
+                border: none;
+                padding: 8px;
+                font-weight: bold;
+                font-size: 13px;
+                text-align: left;
+                background-color: #e0e0e0;
+                color: #212121;
+                border-radius: 4px;
+            }
+            QToolButton:hover {
+                background-color: #d0d0d0;
+            }
+        """)
+        self.header_button.clicked.connect(self._toggle)
+
+        header_row_layout.addWidget(self.header_button)
+
+        # Optional icon between title and header widget
+        if icon_path and os.path.exists(icon_path):
+            icon_label = QLabel()
+            pixmap = QPixmap(icon_path)
+            if not pixmap.isNull():
+                icon_label.setPixmap(pixmap.scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            icon_label.setFixedSize(24, 24)
+            icon_label.setStyleSheet("background-color: transparent;")
+            header_row_layout.addWidget(icon_label)
+
+        if header_widget:
+            header_row_layout.addWidget(header_widget)
+
+        # Content widget
+        self.content_widget = QWidget()
+        self.content_widget.setStyleSheet("background-color: #fafafa;")
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(8, 8, 8, 8)
+        self.content_widget.setVisible(False)
+
+        self.main_layout.addWidget(self.header_row)
+        self.main_layout.addWidget(self.content_widget)
+
+    def _toggle(self):
+        self._is_expanded = not self._is_expanded
+        self.header_button.setArrowType(Qt.DownArrow if self._is_expanded else Qt.RightArrow)
+        self.content_widget.setVisible(self._is_expanded)
+
+    def set_expanded(self, expanded: bool):
+        if self._is_expanded != expanded:
+            self._toggle()
+            self.header_button.setChecked(expanded)
+
+    def add_widget(self, widget: QWidget):
+        self.content_layout.addWidget(widget)
+
+    def add_layout(self, layout):
+        self.content_layout.addLayout(layout)
+
+
+# =============================================================================
+# Worker Threads
+# =============================================================================
+
+class DeploymentWorker(QThread):
+    """Worker thread for Modal deployment."""
+    finished = pyqtSignal(bool)  # True = success, False = failure
+
+    def __init__(self, api_key: str):
+        super().__init__()
+        self.api_key = api_key
+
+    def run(self):
+        result = deploy_to_modal(self.api_key)
+        self.finished.emit(result if result is not None else False)
+
+
+class CuepointWorker(QThread):
+    """Worker thread for cuepoint processing."""
     progress_changed = pyqtSignal(int)
     finished = pyqtSignal()
+    error = pyqtSignal(str)
 
-    def __init__(self, encryption_key, playlist, mode):
+    def __init__(self, encryption_key: str, playlist: str, mode: str, model_type: ModelType):
         super().__init__()
         self.encryption_key = encryption_key
         self.playlist = playlist
         self.mode = mode
+        self.model_type = model_type
 
     def run(self):
-        db = (
-            Rekordbox6Database(key=self.encryption_key)
-            if self.encryption_key
-            else Rekordbox6Database()
-        )
-        playlist = db.get_playlist(Name=self.playlist).one()
-
-        songs_data = []
-        filepath_to_interface: Dict[str, TrackInterface] = {}
-        for song in playlist.Songs:
-            ti = TrackInterface(song, db)
-            filepath = ti.get_content_filepath()
-            songs_data.append((
-                filepath,
-                ti.read_beat_grid(),
-            ))
-            filepath_to_interface[filepath] = ti
-
-        results = []
-        if self.mode == "Add Cuepoints":
-            num_processes = multiprocessing.cpu_count() // 2
-            with multiprocessing.Pool(processes=num_processes) as pool:
-                results = list(
-                    pool.imap(_process_song_metrics, songs_data)
+        try:
+            if self.mode == "add":
+                process_cuepoints_add(
+                    self.encryption_key,
+                    self.playlist,
+                    self.model_type,
+                    self.progress_changed.emit
                 )
-
-        filepath_to_cuepoints = {filepath: cuepoints for (filepath, cuepoints) in results}
-
-        for count, (filepath, ti) in enumerate(filepath_to_interface.items(), start=1):
-            if self.mode == "Add Cuepoints":
-                ti.generate_cuepoints(cuepoint_timestamps=filepath_to_cuepoints[filepath])
             else:
-                ti.clear_hot_cues()
+                process_cuepoints_clear(
+                    self.encryption_key,
+                    self.playlist,
+                    self.progress_changed.emit
+                )
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
 
-            progress = int(count * 100.0 / len(playlist.Songs))
-            self.progress_changed.emit(progress)
 
-        self.finished.emit()
-
+# =============================================================================
+# Main Application Window
+# =============================================================================
 
 class AutocuepointsGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Autocuepoints")
+        self.setMinimumWidth(450)
 
-        self.layout = QVBoxLayout(self)
-        self.form_layout = QVBoxLayout()
+        self._deployment_status = DeploymentStatus.IDLE
+        self._selected_model = ModelType.LOCAL
 
-        self.encryption_label = QLabel("Encryption Key:", self)
-        self.playlist_label = QLabel("Playlist:", self)
-        self.action_label = QLabel("Action:", self)
-        self.status_label = QLabel("Invalid Input", self)
-        self.status_label.setHidden(True)
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.resize(300, 40)
-        self.progress_bar.setHidden(True)
-        # self.debug_label = QLabel(f"{get_config("rekordbox6")}")
+        self._setup_ui()
 
-        self.encryption_box = QLineEdit(self)
-        self.playlist_box = QLineEdit(self)
-        self.action_box = QComboBox(self)
-        self.action_box.addItem("Clear Cuepoints")
-        self.action_box.addItem("Add Cuepoints")
+    def _setup_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(12, 12, 12, 12)
 
-        self.form_layout.addWidget(self.encryption_label)
-        self.form_layout.addWidget(self.encryption_box)
-        self.form_layout.addWidget(self.playlist_label)
-        self.form_layout.addWidget(self.playlist_box)
-        self.form_layout.addWidget(self.action_label)
-        self.form_layout.addWidget(self.action_box)
-        self.form_layout.addWidget(self.status_label)
-        self.form_layout.addWidget(self.progress_bar)
-        # self.form_layout.addWidget(self.debug_label)
+        # Set hardcoded colors for the main window
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #fafafa;
+                color: #212121;
+            }
+            QLineEdit {
+                background-color: #ffffff;
+                color: #212121;
+                border: 1px solid #bdbdbd;
+                border-radius: 4px;
+                padding: 6px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #1976d2;
+            }
+            QComboBox {
+                background-color: #ffffff;
+                color: #212121;
+                border: 1px solid #bdbdbd;
+                border-radius: 4px;
+                padding: 6px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #ffffff;
+                color: #212121;
+                selection-background-color: #e3f2fd;
+                selection-color: #212121;
+            }
+            QPushButton {
+                background-color: #1976d2;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1565c0;
+            }
+            QPushButton:pressed {
+                background-color: #0d47a1;
+            }
+            QPushButton:disabled {
+                background-color: #bdbdbd;
+                color: #757575;
+            }
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                margin-top: 8px;
+                padding-top: 8px;
+                background-color: #ffffff;
+                color: #212121;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 8px;
+                padding: 0 4px;
+                color: #212121;
+            }
+            QRadioButton {
+                color: #212121;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            QProgressBar {
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                background-color: #e0e0e0;
+                text-align: center;
+                color: #212121;
+            }
+            QProgressBar::chunk {
+                background-color: #4caf50;
+                border-radius: 3px;
+            }
+            QLabel {
+                color: #212121;
+            }
+        """)
 
-        self.action_button = QPushButton("Take Action", self)
-        self.action_button.clicked.connect(self.action)
+        # Modal Section (collapsed by default) - with icon and status indicator in header
+        self.status_indicator = StatusIndicator()
+        self.modal_section = CollapsibleSection(
+            "Modal",
+            header_widget=self.status_indicator,
+            icon_path=MODAL_ICON_PATH
+        )
+        self._setup_modal_section()
+        main_layout.addWidget(self.modal_section)
 
-        self.layout.addLayout(self.form_layout)
-        self.layout.addWidget(self.action_button)
+        # Cuepoints Section (expanded by default)
+        self.cuepoints_section = CollapsibleSection("Cuepoints")
+        self._setup_cuepoints_section()
+        self.cuepoints_section.set_expanded(True)
+        main_layout.addWidget(self.cuepoints_section)
+
+        # Stretch to push content up
+        main_layout.addStretch()
+
         self.show()
 
-    def action(self):
-        encryption_key = self.encryption_box.text()
-        playlist = self.playlist_box.text()
-        mode = self.action_box.currentText()
-        self.status_label.setHidden(True)
+    def _setup_modal_section(self):
+        # API Key
+        api_key_label = QLabel("API Key:")
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setEchoMode(QLineEdit.Password)
+        self.api_key_input.setPlaceholderText("Enter Modal API key...")
 
-        try:
-            db = (
-                Rekordbox6Database(key=encryption_key)
-                if encryption_key
-                else Rekordbox6Database()
-            )
-            db.get_playlist(Name=playlist).one()
-            self.progress_bar.setValue(0)
-            self.progress_bar.setHidden(False)
+        # Deploy button
+        deploy_layout = QHBoxLayout()
+        self.deploy_button = QPushButton("Deploy")
+        self.deploy_button.setFixedWidth(100)
+        self.deploy_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1976d2;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1565c0;
+            }
+            QPushButton:pressed {
+                background-color: #0d47a1;
+            }
+            QPushButton:disabled {
+                background-color: #bdbdbd;
+                color: #757575;
+            }
+        """)
+        self.deploy_button.clicked.connect(self._on_deploy_clicked)
 
-            self.worker_thread = WorkerThread(encryption_key, playlist, mode)
-            self.worker_thread.progress_changed.connect(self.update_progress_bar)
-            self.worker_thread.finished.connect(self.on_task_finished)
-            self.worker_thread.start()
-        except Exception as e:
-            self.status_label.setHidden(False)
-            self.status_label.setText(str(e))
-            print(e)
+        deploy_layout.addWidget(self.deploy_button)
+        deploy_layout.addStretch()
 
-    def update_progress_bar(self, value):
+        self.modal_section.add_widget(api_key_label)
+        self.modal_section.add_widget(self.api_key_input)
+        self.modal_section.add_layout(deploy_layout)
+
+    def _setup_cuepoints_section(self):
+        # Rekordbox GroupBox
+        rekordbox_group = QGroupBox("Rekordbox")
+        rekordbox_layout = QVBoxLayout(rekordbox_group)
+
+        # Encryption Key
+        encryption_label = QLabel("Encryption Key:")
+        self.encryption_input = QLineEdit()
+        self.encryption_input.setPlaceholderText("Leave empty if not required")
+        self.encryption_input.textChanged.connect(self._on_encryption_key_changed)
+
+        # Playlist dropdown
+        playlist_label = QLabel("Playlist:")
+        self.playlist_dropdown = QComboBox()
+        self.playlist_dropdown.addItem("Select playlist...")
+        self.playlist_dropdown.setEnabled(False)
+
+        # Refresh playlists button
+        playlist_row = QHBoxLayout()
+        playlist_row.addWidget(self.playlist_dropdown, stretch=1)
+        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.setFixedWidth(70)
+        self.refresh_button.clicked.connect(self._on_refresh_playlists)
+        playlist_row.addWidget(self.refresh_button)
+
+        # Disclaimer
+        disclaimer_label = QLabel("⚠ Please close Rekordbox before proceeding")
+        disclaimer_label.setStyleSheet("color: #ff9800; font-size: 11px; padding: 4px;")
+
+        rekordbox_layout.addWidget(encryption_label)
+        rekordbox_layout.addWidget(self.encryption_input)
+        rekordbox_layout.addWidget(playlist_label)
+        rekordbox_layout.addLayout(playlist_row)
+        rekordbox_layout.addWidget(disclaimer_label)
+
+        self.cuepoints_section.add_widget(rekordbox_group)
+
+        # Model Selection
+        model_label = QLabel("Model Selection")
+        model_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
+        self.cuepoints_section.add_widget(model_label)
+
+        model_frame = QFrame()
+        model_frame.setFrameStyle(QFrame.StyledPanel)
+        model_frame.setStyleSheet("""
+            QFrame {
+                background-color: #f5f5f5;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QWidget {
+                background-color: #f5f5f5;
+            }
+        """)
+        model_layout = QVBoxLayout(model_frame)
+        model_layout.setSpacing(8)
+
+        self.model_button_group = QButtonGroup(self)
+
+        # Local option
+        local_widget = QWidget()
+        local_layout = QHBoxLayout(local_widget)
+        local_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.local_radio = QRadioButton()
+        self.local_radio.setChecked(True)
+        self.model_button_group.addButton(self.local_radio, 0)
+
+        local_name_label = QLabel("🏠 Local")
+        local_name_label.setFixedWidth(80)
+        local_speed_label = QLabel("⚡ Fast")
+        local_speed_label.setStyleSheet("color: #4caf50;")
+        local_accuracy_label = QLabel("🎯 Lower Accuracy")
+        local_accuracy_label.setStyleSheet("color: #ff9800;")
+
+        local_layout.addWidget(self.local_radio)
+        local_layout.addWidget(local_name_label)
+        local_layout.addWidget(local_speed_label)
+        local_layout.addWidget(local_accuracy_label)
+        local_layout.addStretch()
+
+        # Remote option
+        remote_widget = QWidget()
+        remote_layout = QHBoxLayout(remote_widget)
+        remote_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.remote_radio = QRadioButton()
+        self.remote_radio.setEnabled(False)  # Disabled until deployment succeeds
+        self.model_button_group.addButton(self.remote_radio, 1)
+
+        # Remote name with Modal icon inline (using rich text)
+        remote_name_label = QLabel()
+        if os.path.exists(MODAL_ICON_PATH):
+            # Use HTML with embedded image for inline icon (Modal logo is ~2:1 aspect ratio)
+            remote_name_label.setText(f'<img src="{MODAL_ICON_PATH}" width="28" height="14"> Remote')
+        else:
+            remote_name_label.setText("☁️ Remote")
+        remote_name_label.setFixedWidth(105)
+
+        remote_speed_label = QLabel("⚡ Fast")
+        remote_speed_label.setStyleSheet("color: #4caf50;")
+        remote_accuracy_label = QLabel("🎯 Better Accuracy")
+        remote_accuracy_label.setStyleSheet("color: #4caf50;")
+
+        remote_layout.addWidget(self.remote_radio)
+        remote_layout.addWidget(remote_name_label)
+        remote_layout.addWidget(remote_speed_label)
+        remote_layout.addWidget(remote_accuracy_label)
+        remote_layout.addStretch()
+
+        # Remote disabled notice (warning style like Rekordbox disclaimer)
+        self.remote_notice = QLabel("⚠ Deploy Modal first")
+        self.remote_notice.setStyleSheet("color: #ff9800; font-size: 11px; padding: 4px; margin-left: 20px;")
+
+        model_layout.addWidget(local_widget)
+        model_layout.addWidget(remote_widget)
+        model_layout.addWidget(self.remote_notice)
+
+        self.cuepoints_section.add_widget(model_frame)
+
+        # Action buttons
+        buttons_layout = QHBoxLayout()
+
+        button_style = """
+            QPushButton {
+                background-color: #1976d2;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1565c0;
+            }
+            QPushButton:pressed {
+                background-color: #0d47a1;
+            }
+            QPushButton:disabled {
+                background-color: #bdbdbd;
+                color: #757575;
+            }
+        """
+
+        self.add_cuepoints_button = QPushButton("Add Cuepoints")
+        self.add_cuepoints_button.setStyleSheet(button_style)
+        self.add_cuepoints_button.clicked.connect(self._on_add_cuepoints)
+
+        self.clear_cuepoints_button = QPushButton("Clear Cuepoints")
+        self.clear_cuepoints_button.setStyleSheet(button_style)
+        self.clear_cuepoints_button.clicked.connect(self._on_clear_cuepoints)
+
+        buttons_layout.addWidget(self.add_cuepoints_button)
+        buttons_layout.addWidget(self.clear_cuepoints_button)
+
+        self.cuepoints_section.add_layout(buttons_layout)
+
+        # Progress bar (hidden by default)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.cuepoints_section.add_widget(self.progress_bar)
+
+        # Status label for errors
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("color: #f44336;")
+        self.status_label.setVisible(False)
+        self.cuepoints_section.add_widget(self.status_label)
+
+    # =========================================================================
+    # Event Handlers
+    # =========================================================================
+
+    def _on_deploy_clicked(self):
+        api_key = self.api_key_input.text()
+        if not api_key:
+            return
+
+        self.deploy_button.setEnabled(False)
+        self.deploy_button.setText("Deploying...")
+
+        self.deployment_worker = DeploymentWorker(api_key)
+        self.deployment_worker.finished.connect(self._on_deployment_finished)
+        self.deployment_worker.start()
+
+    def _on_deployment_finished(self, success: bool):
+        self.deploy_button.setEnabled(True)
+        self.deploy_button.setText("Deploy")
+
+        if success:
+            self._deployment_status = DeploymentStatus.SUCCESS
+            self.status_indicator.set_status(DeploymentStatus.SUCCESS)
+            self.remote_radio.setEnabled(True)
+            self.remote_notice.setVisible(False)
+        else:
+            self._deployment_status = DeploymentStatus.FAILED
+            self.status_indicator.set_status(DeploymentStatus.FAILED)
+            self.remote_radio.setEnabled(False)
+            self.remote_notice.setText("⚠ Deployment failed - check API key")
+            self.remote_notice.setStyleSheet("color: #f44336; font-size: 11px; padding: 4px; margin-left: 20px;")
+            self.remote_notice.setVisible(True)
+
+    def _on_encryption_key_changed(self, text: str):
+        # Enable playlist dropdown when we have potential to fetch
+        self.playlist_dropdown.setEnabled(True)
+
+    def _on_refresh_playlists(self):
+        encryption_key = self.encryption_input.text()
+
+        self.playlist_dropdown.clear()
+        self.playlist_dropdown.addItem("Loading...")
+
+        playlists = fetch_rekordbox_playlists(encryption_key)
+
+        self.playlist_dropdown.clear()
+        if playlists:
+            for playlist in playlists:
+                self.playlist_dropdown.addItem(playlist)
+        else:
+            self.playlist_dropdown.addItem("No playlists found")
+
+    def _on_add_cuepoints(self):
+        self._run_cuepoint_operation("add")
+
+    def _on_clear_cuepoints(self):
+        self._run_cuepoint_operation("clear")
+
+    def _run_cuepoint_operation(self, mode: str):
+        playlist = self.playlist_dropdown.currentText()
+        if playlist in ["Select playlist...", "Loading...", "No playlists found"]:
+            self.status_label.setText("Please select a valid playlist")
+            self.status_label.setVisible(True)
+            return
+
+        encryption_key = self.encryption_input.text()
+        model_type = ModelType.REMOTE if self.remote_radio.isChecked() else ModelType.LOCAL
+
+        # Disable buttons and show progress
+        self.add_cuepoints_button.setEnabled(False)
+        self.clear_cuepoints_button.setEnabled(False)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(True)
+        self.status_label.setVisible(False)
+
+        self.cuepoint_worker = CuepointWorker(encryption_key, playlist, mode, model_type)
+        self.cuepoint_worker.progress_changed.connect(self._on_progress_changed)
+        self.cuepoint_worker.finished.connect(self._on_cuepoint_operation_finished)
+        self.cuepoint_worker.error.connect(self._on_cuepoint_operation_error)
+        self.cuepoint_worker.start()
+
+    def _on_progress_changed(self, value: int):
         self.progress_bar.setValue(value)
 
-    def on_task_finished(self):
-        time.sleep(1)
-        self.progress_bar.setHidden(True)
+    def _on_cuepoint_operation_finished(self):
+        self.add_cuepoints_button.setEnabled(True)
+        self.clear_cuepoints_button.setEnabled(True)
+        self.progress_bar.setVisible(False)
 
+    def _on_cuepoint_operation_error(self, error_message: str):
+        self.add_cuepoints_button.setEnabled(True)
+        self.clear_cuepoints_button.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self.status_label.setText(error_message)
+        self.status_label.setVisible(True)
+
+
+# =============================================================================
+# Entry Point
+# =============================================================================
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
     app = QApplication(sys.argv)
-    w = AutocuepointsGUI()
-    app.exec()
+    window = AutocuepointsGUI()
+    sys.exit(app.exec())

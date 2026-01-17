@@ -5,7 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('Modal-IconMark.png', '.')],
     hiddenimports=["sqlcipher3_wheels"],
     hookspath=[],
     hooksconfig={},

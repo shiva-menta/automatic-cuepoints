@@ -53,7 +53,7 @@ class RecurrenceEngine(ChangePointEngine):
                 sample_rate=1000,
                 hop_length=50,
                 n_mfcc=13,
-                diagonal_tolerance=0.15,
+                diagonal_tolerance=0.25,
                 debug_mode=False,
                 manual_k=False,
             )

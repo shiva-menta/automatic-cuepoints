@@ -14,16 +14,9 @@ from track_interface.cuepoint_engines.stft_change_point_engine import (
     StftChangePointEngine,
     StftChangePointParams,
 )
-from track_interface.cuepoint_engines.genai_engine import (
-    GenAIEngine,
-    GenAIEngineParams
-)
 from track_interface.cuepoint_engines.recurrence_engine import (
     RecurrenceEngine,
     RecurrenceEngineParams
-)
-from track_interface.cuepoint_engines.dynamic_programming_engine import (
-    DynamicProgrammingEngine
 )
 from track_interface.cuepoint_engines.all_in_one_engine import (
     AllInOneEngine,
@@ -37,12 +30,10 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 _ENGINE_MAP: Dict[str, CuepointEngine] = {
     "recurrence": RecurrenceEngine,
     "stft": StftChangePointEngine,
-    "genai": GenAIEngine,
-    "dynamic_programming": DynamicProgrammingEngine,
     "all_in_one": AllInOneEngine,
 }
 
-_DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/antiup.wav"
+_DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/Anti Up - Chromatic (Official Audio).mp3"
 
 
 def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, List[int]]:
@@ -143,11 +134,6 @@ def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
                 manual_k=True,
             )
         case "all_in_one":
-            # TODO: Replace with your actual Modal endpoint URL after deployment
-            # params = AllInOneEngineParams(
-            #     debug_mode=debug_mode,
-            #     modal_endpoint_url="https://shiva-menta--automatic-cuepoints-fastapi-app.modal.run"
-            # )
             params = AllInOneEngineParams(
                 debug_mode=debug_mode,
             )
@@ -169,7 +155,7 @@ def get_error_metrics(args):
     songs_data = []
     for song in cuepoint_playlist.Songs:
         ti = TrackInterface(song, db)
-        if args.default_track and ti.get_content_filepath() != "/Users/shivamenta/Desktop/training_data/Anti Up - Chromatic (Official Audio).mp3":
+        if args.default_track and ti.get_content_filepath() != _DEFAULT_TRACK_PATH:
             continue
         songs_data.append((
             args.model,

@@ -42,11 +42,14 @@ allin1_image = (
 def process_audio(audio_bytes: bytes, file_name: str, force_recalculate: bool = False) -> list:
     """Internal function to process audio and return segments."""
     import allin1
+    import os
 
     # write audio bytes to file
     tmp_path = f"/tmp/{file_name}"
     with open(tmp_path, "wb") as f:
         f.write(audio_bytes)
+
+    os.environ["TORCH_HOME"] = cache_mount_path
 
     # get analyze outputs
     result = allin1.analyze(

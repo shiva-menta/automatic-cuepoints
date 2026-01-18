@@ -13,3 +13,9 @@ pyinstaller app.spec --noconfirm && mkdir dist/Autocuepoints.app/Contents/Framew
 Current Status:
 - Trying to hack a small one fix solution to the allin1 dependency issues.
 - Simultaneously, use CC to fix dependencies to completely modern version of the other repository.
+
+## Modal Deployment Details
+Redeploy Function Container
+```
+modal deploy track_interface/cuepoint_engines/all_in_one_engine.py
+```

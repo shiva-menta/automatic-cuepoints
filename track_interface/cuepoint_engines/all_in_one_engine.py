@@ -149,9 +149,19 @@ class AllInOneEngine(CuepointEngine):
                 snapped_cuepoints.append(int(closest_beat))
 
         # Remove duplicates and sort
-        snapped_cuepoints = sorted(list(set(snapped_cuepoints)))
+        change_points = sorted(list(set(snapped_cuepoints)))
 
-        return snapped_cuepoints
+        # Heuristics
+        first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
+        for heuristic in [
+            FirstBeatsOnly,
+            SongStartCuepoint,
+            RestrictedMeasureIncrements,
+            SongEndCuepoint,
+        ]:
+            change_points = heuristic.apply(first_beat_timestamps, change_points)
+
+        return change_points
 
     def _get_default_params(self) -> AllInOneEngineParams:
         """

@@ -150,7 +150,6 @@ def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
             # )
             params = AllInOneEngineParams(
                 debug_mode=debug_mode,
-                modal_endpoint_url=None
             )
 
     model_inst = _ENGINE_MAP[model_str](params=params)

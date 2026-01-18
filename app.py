@@ -52,12 +52,13 @@ class ModelType(Enum):
 # Stub Functions - Fill these out
 # =============================================================================
 
-def deploy_to_modal(api_key: str) -> bool:
+def deploy_to_modal(token_id: str, token_secret: str) -> bool:
     """
     Deploy to Modal cloud.
 
     Args:
-        api_key: The Modal API key
+        token_id: The Modal Token ID
+        token_secret: The Modal Token Secret
 
     Returns:
         True if deployment succeeded, False otherwise
@@ -236,12 +237,13 @@ class DeploymentWorker(QThread):
     """Worker thread for Modal deployment."""
     finished = pyqtSignal(bool)  # True = success, False = failure
 
-    def __init__(self, api_key: str):
+    def __init__(self, token_id: str, token_secret: str):
         super().__init__()
-        self.api_key = api_key
+        self.token_id = token_id
+        self.token_secret = token_secret
 
     def run(self):
-        result = deploy_to_modal(self.api_key)
+        result = deploy_to_modal(self.token_id, self.token_secret)
         self.finished.emit(result if result is not None else False)
 
 
@@ -408,11 +410,16 @@ class AutocuepointsGUI(QWidget):
         self.show()
 
     def _setup_modal_section(self):
-        # API Key
-        api_key_label = QLabel("API Key:")
-        self.api_key_input = QLineEdit()
-        self.api_key_input.setEchoMode(QLineEdit.Password)
-        self.api_key_input.setPlaceholderText("Enter Modal API key...")
+        # Token ID
+        token_id_label = QLabel("Token ID:")
+        self.token_id_input = QLineEdit()
+        self.token_id_input.setPlaceholderText("Enter Modal Token ID...")
+
+        # Token Secret
+        token_secret_label = QLabel("Token Secret:")
+        self.token_secret_input = QLineEdit()
+        self.token_secret_input.setEchoMode(QLineEdit.Password)
+        self.token_secret_input.setPlaceholderText("Enter Modal Token Secret...")
 
         # Deploy button
         deploy_layout = QHBoxLayout()
@@ -443,8 +450,10 @@ class AutocuepointsGUI(QWidget):
         deploy_layout.addWidget(self.deploy_button)
         deploy_layout.addStretch()
 
-        self.modal_section.add_widget(api_key_label)
-        self.modal_section.add_widget(self.api_key_input)
+        self.modal_section.add_widget(token_id_label)
+        self.modal_section.add_widget(self.token_id_input)
+        self.modal_section.add_widget(token_secret_label)
+        self.modal_section.add_widget(self.token_secret_input)
         self.modal_section.add_layout(deploy_layout)
 
     def _setup_cuepoints_section(self):
@@ -621,14 +630,15 @@ class AutocuepointsGUI(QWidget):
     # =========================================================================
 
     def _on_deploy_clicked(self):
-        api_key = self.api_key_input.text()
-        if not api_key:
+        token_id = self.token_id_input.text()
+        token_secret = self.token_secret_input.text()
+        if not token_id or not token_secret:
             return
 
         self.deploy_button.setEnabled(False)
         self.deploy_button.setText("Deploying...")
 
-        self.deployment_worker = DeploymentWorker(api_key)
+        self.deployment_worker = DeploymentWorker(token_id, token_secret)
         self.deployment_worker.finished.connect(self._on_deployment_finished)
         self.deployment_worker.start()
 
@@ -645,7 +655,7 @@ class AutocuepointsGUI(QWidget):
             self._deployment_status = DeploymentStatus.FAILED
             self.status_indicator.set_status(DeploymentStatus.FAILED)
             self.remote_radio.setEnabled(False)
-            self.remote_notice.setText("⚠ Deployment failed - check API key")
+            self.remote_notice.setText("⚠ Deployment failed - check credentials")
             self.remote_notice.setStyleSheet("color: #f44336; font-size: 11px; padding: 4px; margin-left: 20px;")
             self.remote_notice.setVisible(True)
 

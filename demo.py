@@ -24,6 +24,7 @@ from track_interface.cuepoint_engines.all_in_one_engine import (
 )
 
 from track_interface.track_interface import TrackInterface
+import os
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -49,7 +50,7 @@ def add_cuepoints_to_test_data(args):
 
     songs_data = []
     filepath_to_interface: Dict[str, TrackInterface] = {}
-    for song in playlist.Songs:
+    for song in playlist.Songs[:args.num_songs]:
         ti = TrackInterface(song, db)
         filepath = ti.get_content_filepath()
         filepath_to_interface[filepath] = ti
@@ -62,7 +63,7 @@ def add_cuepoints_to_test_data(args):
     if not songs_data:
         raise ValueError("No valid tracks found.")
 
-    num_processes = args.num_processes
+    num_processes = min(args.num_processes, len(songs_data))
     results = []
     if num_processes > 1:
         with multiprocessing.Pool(processes=num_processes) as pool:
@@ -78,6 +79,10 @@ def add_cuepoints_to_test_data(args):
     filepath_to_cuepoints = {filepath: cuepoints for (filepath, cuepoints) in results}
     for _, (filepath, ti) in enumerate(filepath_to_interface.items(), start=1):
         ti.generate_cuepoints(cuepoint_timestamps=filepath_to_cuepoints[filepath])
+
+    if args.debug:
+        song_names = [os.path.basename(fp) for fp in filepath_to_interface.keys()]
+        print(f"Added cuepoints to {len(song_names)} songs: {song_names}")
 
 
 def get_cuepoint_engine_performance_metrics(
@@ -170,7 +175,7 @@ def get_error_metrics(args):
         raise ValueError("No valid tracks found.")
 
     # Calculate Aggregate Error Metrics using parallel processing
-    num_processes = args.num_processes
+    num_processes = min(args.num_processes, len(songs_data))
     metrics = {key: 0 for key in ["true_positive", "false_positive", "false_negative"]}
 
     results = []

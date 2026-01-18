@@ -68,6 +68,7 @@ def process_audio(audio_bytes: bytes, file_name: str, force_recalculate: bool = 
     } for segment in segments]
 
     # todo(smenta) - figure out if we want to clear out the actual song data in file
+    # modal doesn't charge for volume storage yet, but once this is set - we can remove.
 
     # persist changes
     vol.commit()
@@ -107,16 +108,10 @@ class AllInOneEngine(CuepointEngine):
         Returns:
             List of cuepoint timestamps in milliseconds
         """
-        # Assert filepath is WAV (temporary override for testing)
-        if not file_path.lower().endswith('.wav'):
-            file_path = "/Users/shivamenta/Desktop/antiup.wav"
-            # raise ValueError(f"File must be WAV format, got: {file_path}")
-
-        # need to figure out where exactly we should get the API key from
-
         # Convert file_path to bytes
         with open(file_path, 'rb') as f:
             audio_bytes = f.read()
+        # todo(smenta) - might need to fix based on proper file extension
         file_name = hashlib.md5(file_path.encode()).hexdigest() + ".wav"
 
         segments_seconds = self.func.remote(audio_bytes, file_name)

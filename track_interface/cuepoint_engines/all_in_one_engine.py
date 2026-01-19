@@ -7,18 +7,13 @@ from track_interface.cuepoint_engines.heuristics import (
 )
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 from track_interface.types import BeatGrid, Cuepoint, CuepointList
-from track_interface.cuepoint_engines.cache import (
-    CACHE_ENABLED,
-    convert_to_key,
-    get,
-    put,
-)
-import bisect
-from scipy.ndimage import gaussian_filter
-import numpy as np
-import matplotlib.pyplot as plt
-from collections import defaultdict
-from typing import Literal, Any, Optional
+# from track_interface.cuepoint_engines.cache import (
+#     CACHE_ENABLED,
+#     convert_to_key,
+#     get,
+#     put,
+# )
+from typing import Optional
 from dataclasses import dataclass
 import modal
 import hashlib

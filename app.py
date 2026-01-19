@@ -23,6 +23,8 @@ import sys
 import multiprocessing
 from enum import Enum
 
+from cuepoint_utils import CuepointProcessingArgs, add_cuepoints_to_playlist, clear_cuepoints_from_playlist
+
 # Get the directory where this script is located (handles PyInstaller bundling)
 if getattr(sys, 'frozen', False):
     SCRIPT_DIR = sys._MEIPASS
@@ -98,8 +100,6 @@ def process_cuepoints_add(encryption_key: str, playlist: str, model_type: ModelT
         model_type: LOCAL or REMOTE model
         progress_callback: Function to call with progress (0-100)
     """
-    from cuepoint_utils import CuepointProcessingArgs, add_cuepoints_to_playlist
-
     # Select model based on type
     model = "all_in_one" if model_type == ModelType.REMOTE else "stft"
 
@@ -130,8 +130,6 @@ def process_cuepoints_clear(encryption_key: str, playlist: str, progress_callbac
         playlist: The playlist name to process
         progress_callback: Function to call with progress (0-100)
     """
-    from cuepoint_utils import clear_cuepoints_from_playlist
-
     # Adapt (current, total) callback to percentage callback for GUI
     def adapted_callback(current: int, total: int):
         if progress_callback and total > 0:

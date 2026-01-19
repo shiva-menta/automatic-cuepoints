@@ -22,6 +22,7 @@ torch = ">=2.5.0,<2.6.0"
 torchvision = "*"
 madmom = {git = "https://github.com/CPJKU/madmom"}
 allin1 = "*"
+scipy = "*"
 
 [dev-packages]
 ipykernel = "*"

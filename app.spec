@@ -1,12 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('Modal-IconMark.png', '.')],
-    hiddenimports=["sqlcipher3_wheels"],
+    datas=[('Modal-IconMark.png', '.'), ('cuepoint_utils.py', '.'), ('track_interface', 'track_interface')],
+    hiddenimports=[
+        "sqlcipher3_wheels",
+        "matplotlib",
+        "librosa",
+        "numpy",
+        "scipy",
+        "ruptures",
+        "modal",
+        "pyrekordbox",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

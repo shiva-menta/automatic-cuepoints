@@ -98,8 +98,27 @@ def process_cuepoints_add(encryption_key: str, playlist: str, model_type: ModelT
         model_type: LOCAL or REMOTE model
         progress_callback: Function to call with progress (0-100)
     """
-    # TODO: Implement cuepoint addition logic
-    pass
+    from cuepoint_utils import CuepointProcessingArgs, add_cuepoints_to_playlist
+
+    # Select model based on type
+    model = "all_in_one" if model_type == ModelType.REMOTE else "stft"
+
+    args = CuepointProcessingArgs(
+        model=model,
+        num_processes=4,
+        encryption_key=encryption_key if encryption_key else None,
+    )
+
+    # Adapt (current, total) callback to percentage callback for GUI
+    def adapted_callback(current: int, total: int):
+        if progress_callback and total > 0:
+            progress_callback(int(current / total * 100))
+
+    add_cuepoints_to_playlist(
+        playlist_name=playlist,
+        args=args,
+        progress_callback=adapted_callback,
+    )
 
 
 def process_cuepoints_clear(encryption_key: str, playlist: str, progress_callback) -> None:
@@ -111,8 +130,18 @@ def process_cuepoints_clear(encryption_key: str, playlist: str, progress_callbac
         playlist: The playlist name to process
         progress_callback: Function to call with progress (0-100)
     """
-    # TODO: Implement cuepoint clearing logic
-    pass
+    from cuepoint_utils import clear_cuepoints_from_playlist
+
+    # Adapt (current, total) callback to percentage callback for GUI
+    def adapted_callback(current: int, total: int):
+        if progress_callback and total > 0:
+            progress_callback(int(current / total * 100))
+
+    clear_cuepoints_from_playlist(
+        playlist_name=playlist,
+        encryption_key=encryption_key if encryption_key else None,
+        progress_callback=adapted_callback,
+    )
 
 
 # =============================================================================

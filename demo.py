@@ -1,5 +1,6 @@
 import multiprocessing
 import argparse
+import os
 
 # Temp Ignore warnings
 import warnings
@@ -11,79 +12,47 @@ from pyrekordbox import Rekordbox6Database
 from tqdm import tqdm
 
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
-
-from track_interface.cuepoint_engines.stft_change_point_engine import (
-    StftChangePointEngine,
-    StftChangePointParams,
-)
-from track_interface.cuepoint_engines.recurrence_engine import (
-    RecurrenceEngine,
-    RecurrenceEngineParams
-)
-from track_interface.cuepoint_engines.all_in_one_engine import (
-    AllInOneEngine,
-    AllInOneEngineParams
-)
+from track_interface.cuepoint_engines.recurrence_engine import RecurrenceEngineParams
+from track_interface.cuepoint_engines.all_in_one_engine import AllInOneEngineParams
 
 from track_interface.track_interface import TrackInterface
-import os
+from cuepoint_utils import CuepointProcessingArgs, add_cuepoints_to_playlist, ENGINE_MAP
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-_ENGINE_MAP: Dict[str, CuepointEngine] = {
-    "recurrence": RecurrenceEngine,
-    "stft": StftChangePointEngine,
-    "all_in_one": AllInOneEngine,
-}
+_ENGINE_MAP = ENGINE_MAP
 
 _DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/Anti Up - Chromatic (Official Audio).mp3"
 
 
-def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, CuepointList]:
-    """Worker function to generate cuepoints for single track."""
-    model_str, file_path, beat_grid = song_data
-    cuepoint_engine: CuepointEngine = _ENGINE_MAP[model_str](params=None)
-    return (file_path, cuepoint_engine.generate_cuepoints(file_path=file_path, beat_grid=beat_grid))
-
-
 def add_cuepoints_to_test_data(args):
-    db = Rekordbox6Database()
-    playlist = db.get_playlist(Name="test_data").one()
+    """Add cuepoints to test_data playlist using shared utility."""
+    processing_args = CuepointProcessingArgs(
+        model=args.model,
+        num_processes=args.num_processes,
+        num_songs=args.num_songs,
+    )
 
-    songs_data = []
-    filepath_to_interface: Dict[str, TrackInterface] = {}
-    for song in playlist.Songs[:args.num_songs]:
-        ti = TrackInterface(song, db)
-        filepath = ti.get_content_filepath()
-        filepath_to_interface[filepath] = ti
-        songs_data.append((
-            args.model,
-            filepath,
-            ti.read_beat_grid(),
-        ))
+    # Use tqdm for progress display
+    progress_bar = None
 
-    if not songs_data:
-        raise ValueError("No valid tracks found.")
+    def progress_callback(current: int, total: int):
+        nonlocal progress_bar
+        if progress_bar is None:
+            progress_bar = tqdm(total=total, desc="Processing songs")
+        progress_bar.n = current
+        progress_bar.refresh()
 
-    num_processes = min(args.num_processes, len(songs_data))
-    results = []
-    if num_processes > 1:
-        with multiprocessing.Pool(processes=num_processes) as pool:
-            results = list(tqdm(
-                pool.imap(_get_cuepoints_worker, songs_data),
-                total=len(songs_data),
-                desc="Processing songs"
-            ))
-    elif num_processes == 1:
-        for song_data in tqdm(songs_data):
-            results.append(_get_cuepoints_worker(song_data))
-
-    filepath_to_cuepoints = {filepath: cuepoints for (filepath, cuepoints) in results}
-    for _, (filepath, ti) in enumerate(filepath_to_interface.items(), start=1):
-        ti.generate_cuepoints(cuepoints=filepath_to_cuepoints[filepath])
+    processed_files = add_cuepoints_to_playlist(
+        playlist_name="test_data",
+        args=processing_args,
+        progress_callback=progress_callback,
+    )
+    if progress_bar:
+        progress_bar.close()
 
     if args.debug:
-        song_names = [os.path.basename(fp) for fp in filepath_to_interface.keys()]
+        song_names = [os.path.basename(fp) for fp in processed_files]
         print(f"Added cuepoints to {len(song_names)} songs: {song_names}")
 
 
@@ -247,12 +216,12 @@ def main():
     parser.add_argument("--mode", type=str, default="calc-metrics",
                         help=f"Available modes are: ['calc-metrics', 'add-cuepoints'].")
     parser.add_argument("--model", type=str, default="recurrence", help=f"Available modes are: ['recurrence', 'stft', 'genai']")
-    parser.add_argument("--num-processes", type=int, default=100, help="Number of songs to calculate metrics for.")
+    parser.add_argument("--num-processes", type=int, default=1, help="Number of songs to calculate metrics for.")
     # calc-metrics params
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logging within engines and force one process.")
     parser.add_argument("--default-track", action="store_true", default=False,
                         help="Runs cuepoint calculation on only default track + add visualizer for certain engines.")
-    parser.add_argument("--num-songs", type=int, default=100, help="Number of songs to calculate metrics for.")
+    parser.add_argument("--num-songs", type=int, default=0, help="Number of songs to calculate metrics for.")
 
     args = parser.parse_args()
 

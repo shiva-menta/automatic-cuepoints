@@ -2,7 +2,7 @@ import math
 from abc import abstractmethod
 from typing import Tuple
 
-from track_interface.types import CuepointList
+from track_interface.types import Cuepoint, CuepointList, TimestampList
 
 
 class Heuristic:
@@ -13,7 +13,7 @@ class Heuristic:
     @staticmethod
     @abstractmethod
     def apply(
-        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
         pass
 
@@ -24,7 +24,7 @@ class FirstBeatsOnly(Heuristic):
     """
 
     @staticmethod
-    def _get_closest_timestamp_to_target(timestamps: CuepointList, tgt: int) -> int:
+    def _get_closest_timestamp_to_target(timestamps: TimestampList, tgt: int) -> int:
         closest_idx, closest_dist = 0, abs(tgt - timestamps[0])
         l, r = 0, len(timestamps) - 1
 
@@ -41,15 +41,18 @@ class FirstBeatsOnly(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
-        if not cuepoint_timestamps:
+        if not cuepoints:
             return []
         return [
-            FirstBeatsOnly._get_closest_timestamp_to_target(
-                first_beat_timestamps, cuepoint
+            Cuepoint(
+                timestamp=FirstBeatsOnly._get_closest_timestamp_to_target(
+                    first_beat_timestamps, cuepoint.timestamp
+                ),
+                label=cuepoint.label,
             )
-            for cuepoint in cuepoint_timestamps
+            for cuepoint in cuepoints
         ]
 
 
@@ -75,18 +78,19 @@ class RestrictedMeasureIncrements(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
-        if not cuepoint_timestamps:
+        if not cuepoints:
             return []
         timestamp_to_measure = {
             timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
         }
-        prev_measure = timestamp_to_measure[cuepoint_timestamps[0]]
-        new_cuepoints = [cuepoint_timestamps[0]]
+        prev_measure = timestamp_to_measure[cuepoints[0].timestamp]
+        new_cuepoints = [cuepoints[0]]
 
-        for cuepoint_idx in range(1, len(cuepoint_timestamps)):
-            curr_timestamp = cuepoint_timestamps[cuepoint_idx]
+        for cuepoint_idx in range(1, len(cuepoints)):
+            curr_cuepoint = cuepoints[cuepoint_idx]
+            curr_timestamp = curr_cuepoint.timestamp
             curr_measure = timestamp_to_measure[curr_timestamp]
 
             closest_four_divisor = (curr_measure - prev_measure) // 4
@@ -124,8 +128,8 @@ class RestrictedMeasureIncrements(Heuristic):
             prev_measure = adj_curr_measure
             adj_curr_timestamp = first_beat_timestamps[adj_curr_measure]
 
-            if adj_curr_timestamp != new_cuepoints[-1]:
-                new_cuepoints.append(adj_curr_timestamp)
+            if adj_curr_timestamp != new_cuepoints[-1].timestamp:
+                new_cuepoints.append(Cuepoint(timestamp=adj_curr_timestamp, label=curr_cuepoint.label))
 
         return new_cuepoints
 
@@ -144,9 +148,9 @@ class SongStartCuepoint(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
-        if not cuepoint_timestamps:
+        if not cuepoints:
             return []
         timestamp_to_measure = {
             timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
@@ -155,13 +159,13 @@ class SongStartCuepoint(Heuristic):
         start_measure_votes = {
             idx: 0
             for idx in range(4)
-            if first_beat_timestamps[idx] < cuepoint_timestamps[0]
+            if first_beat_timestamps[idx] < cuepoints[0].timestamp
         }
         if not start_measure_votes:
-            return cuepoint_timestamps
+            return cuepoints
 
-        for cuepoint in cuepoint_timestamps:
-            curr_measure = timestamp_to_measure[cuepoint]
+        for cuepoint in cuepoints:
+            curr_measure = timestamp_to_measure[cuepoint.timestamp]
             for possible_start in start_measure_votes:
                 for divisor in [4, 2]:
                     if (curr_measure - possible_start) % divisor == 0:
@@ -169,7 +173,7 @@ class SongStartCuepoint(Heuristic):
                         break
 
         best_start = max(start_measure_votes, key=start_measure_votes.get)
-        return [first_beat_timestamps[best_start]] + cuepoint_timestamps
+        return [Cuepoint(timestamp=first_beat_timestamps[best_start], label="")] + cuepoints
 
 
 class FirstBeatCuepoint(Heuristic):
@@ -180,13 +184,13 @@ class FirstBeatCuepoint(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
-        if not cuepoint_timestamps:
+        if not cuepoints:
             return []
-        if cuepoint_timestamps[0] != first_beat_timestamps[0]:
-            return first_beat_timestamps[:1] + cuepoint_timestamps
-        return cuepoint_timestamps
+        if cuepoints[0].timestamp != first_beat_timestamps[0]:
+            return [Cuepoint(timestamp=first_beat_timestamps[0], label="")] + cuepoints
+        return cuepoints
 
 
 class SongEndCuepoint(Heuristic):
@@ -196,10 +200,10 @@ class SongEndCuepoint(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
-        if not cuepoint_timestamps:
+        if not cuepoints:
             return []
-        if cuepoint_timestamps[-1] == first_beat_timestamps[-1]:
-            cuepoint_timestamps.pop()
-        return cuepoint_timestamps
+        if cuepoints[-1].timestamp == first_beat_timestamps[-1]:
+            cuepoints.pop()
+        return cuepoints

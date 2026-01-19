@@ -3,7 +3,9 @@ import argparse
 
 # Temp Ignore warnings
 import warnings
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
+
+from track_interface.types import CuepointList
 
 from pyrekordbox import Rekordbox6Database
 from tqdm import tqdm
@@ -37,7 +39,7 @@ _ENGINE_MAP: Dict[str, CuepointEngine] = {
 _DEFAULT_TRACK_PATH = "/Users/shivamenta/Desktop/training_data/Anti Up - Chromatic (Official Audio).mp3"
 
 
-def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, List[int]]:
+def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, CuepointList]:
     """Worker function to generate cuepoints for single track."""
     model_str, file_path, beat_grid = song_data
     cuepoint_engine: CuepointEngine = _ENGINE_MAP[model_str](params=None)
@@ -78,7 +80,7 @@ def add_cuepoints_to_test_data(args):
 
     filepath_to_cuepoints = {filepath: cuepoints for (filepath, cuepoints) in results}
     for _, (filepath, ti) in enumerate(filepath_to_interface.items(), start=1):
-        ti.generate_cuepoints(cuepoint_timestamps=filepath_to_cuepoints[filepath])
+        ti.generate_cuepoints(cuepoints=filepath_to_cuepoints[filepath])
 
     if args.debug:
         song_names = [os.path.basename(fp) for fp in filepath_to_interface.keys()]
@@ -86,7 +88,7 @@ def add_cuepoints_to_test_data(args):
 
 
 def get_cuepoint_engine_performance_metrics(
-        cuepoint_engine: CuepointEngine, debug_mode: bool, hot_cues, file_path: str, beat_grid) -> Dict[
+        cuepoint_engine: CuepointEngine, debug_mode: bool, hot_cues: CuepointList, file_path: str, beat_grid) -> Dict[
         str, int]:
     estimated_cuepoints = cuepoint_engine.generate_cuepoints(file_path=file_path,
                                                              beat_grid=beat_grid)
@@ -97,10 +99,8 @@ def get_cuepoint_engine_performance_metrics(
     while estimated_idx < len(estimated_cuepoints) or labeled_idx < len(
         labeled_cuepoints
     ):
-        est_cp, lab_cp = (
-            estimated_cuepoints[estimated_idx] if estimated_idx < len(estimated_cuepoints) else float('inf'),
-            labeled_cuepoints[labeled_idx] if labeled_idx < len(labeled_cuepoints) else float('inf'),
-        )
+        est_cp = estimated_cuepoints[estimated_idx].timestamp if estimated_idx < len(estimated_cuepoints) else float('inf')
+        lab_cp = labeled_cuepoints[labeled_idx].timestamp if labeled_idx < len(labeled_cuepoints) else float('inf')
         if est_cp == lab_cp:
             tp += 1
             estimated_idx += 1

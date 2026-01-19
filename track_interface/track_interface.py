@@ -3,7 +3,7 @@ import json
 from typing import Dict
 from uuid import uuid4
 
-from track_interface.types import BeatGrid, CuepointList
+from track_interface.types import BeatGrid, Cuepoint, CuepointList, TimestampList
 
 from pyrekordbox.anlz import AnlzFile
 from pyrekordbox.db6 import ContentCue, DjmdCue, DjmdSongPlaylist
@@ -227,7 +227,7 @@ class TrackInterface:
 
         content_cue_entry = query.first()
         cues_json = json.loads(content_cue_entry.Cues)
-        return [cue_data["InMsec"] for cue_data in cues_json]
+        return [Cuepoint(timestamp=cue_data["InMsec"], label="") for cue_data in cues_json]
 
     def get_content_filepath(self) -> str:
         djmd_content_entry = self.db.get_content(ID=self.content_id)
@@ -236,7 +236,7 @@ class TrackInterface:
 
         return djmd_content_entry.FolderPath
 
-    def _get_first_beat_timestamps(self) -> CuepointList:
+    def _get_first_beat_timestamps(self) -> TimestampList:
         return [
             beat_tuple[2] for beat_tuple in self.read_beat_grid() if beat_tuple[0] == 1
         ]
@@ -263,12 +263,12 @@ class TrackInterface:
 
         return cuepoints
 
-    def generate_cuepoints(self, cuepoint_timestamps) -> None:
+    def generate_cuepoints(self, cuepoints: CuepointList) -> None:
         self.clear_hot_cues()
 
         cuepoint_objs = [
-            self.get_djmd_cue(timestamp, kind=idx + 1)
-            for idx, timestamp in enumerate(cuepoint_timestamps)
+            self.get_djmd_cue(cuepoint.timestamp, kind=idx + 1)
+            for idx, cuepoint in enumerate(cuepoints)
         ]
         cuepoint_objs = self._color_label_cuepoints(cuepoint_objs)
         self.add_hot_cues(cuepoint_objs)

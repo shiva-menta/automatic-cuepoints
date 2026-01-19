@@ -1,4 +1,4 @@
-from track_interface.types import BeatGrid, CuepointList
+from track_interface.types import BeatGrid, CuepointList, TimestampList
 
 
 class CuepointEngine:
@@ -11,7 +11,7 @@ class CuepointEngine:
         """
         raise NotImplementedError("Base class function not implemented.")
 
-    def _get_first_beat_timestamps(self, beat_grid: BeatGrid) -> CuepointList:
+    def _get_first_beat_timestamps(self, beat_grid: BeatGrid) -> TimestampList:
         return [beat_tuple[2] for beat_tuple in beat_grid if beat_tuple[0] == 1]
 
     def _get_default_params(self):

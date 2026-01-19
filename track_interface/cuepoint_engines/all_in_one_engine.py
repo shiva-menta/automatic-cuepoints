@@ -5,7 +5,7 @@ from track_interface.cuepoint_engines.heuristics import (
     SongStartCuepoint,
 )
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
-from track_interface.types import BeatGrid, CuepointList
+from track_interface.types import BeatGrid, Cuepoint, CuepointList
 from track_interface.cuepoint_engines.cache import (
     CACHE_ENABLED,
     convert_to_key,
@@ -152,6 +152,9 @@ class AllInOneEngine(CuepointEngine):
         # Remove duplicates and sort
         change_points = sorted(list(set(snapped_cuepoints)))
 
+        # Convert to CuepointList format with empty labels
+        cuepoints: CuepointList = [Cuepoint(timestamp=ts, label="") for ts in change_points]
+
         # Heuristics
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [
@@ -160,9 +163,9 @@ class AllInOneEngine(CuepointEngine):
             RestrictedMeasureIncrements,
             SongEndCuepoint,
         ]:
-            change_points = heuristic.apply(first_beat_timestamps, change_points)
+            cuepoints = heuristic.apply(first_beat_timestamps, cuepoints)
 
-        return change_points
+        return cuepoints
 
     def _get_default_params(self) -> AllInOneEngineParams:
         """

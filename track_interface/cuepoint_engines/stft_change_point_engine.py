@@ -20,7 +20,7 @@ from track_interface.cuepoint_engines.heuristics import (
     SongStartCuepoint,
 )
 
-from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid
+from track_interface.types import BeatGrid, Cuepoint, CuepointList
 
 
 @dataclass(frozen=True)
@@ -131,7 +131,7 @@ class StftChangePointEngine(ChangePointEngine):
 
         return smoothed_freq_buckets_to_signal
 
-    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
+    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> CuepointList:
         freq_bucket_to_signal = self._generate_frequency_data(file_path)
         song_length = librosa.get_duration(path=file_path) * 1000.0
         sample_size_msecs = song_length / len(freq_bucket_to_signal[0])
@@ -141,6 +141,9 @@ class StftChangePointEngine(ChangePointEngine):
             sample_size_msecs,
         )
 
+        # Convert to CuepointList format with empty labels
+        cuepoints: CuepointList = [Cuepoint(timestamp=ts, label="") for ts in change_points]
+
         # Heuristics
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [
@@ -149,6 +152,6 @@ class StftChangePointEngine(ChangePointEngine):
             RestrictedMeasureIncrements,
             SongEndCuepoint,
         ]:
-            change_points = heuristic.apply(first_beat_timestamps, change_points)
+            cuepoints = heuristic.apply(first_beat_timestamps, cuepoints)
 
-        return change_points
+        return cuepoints

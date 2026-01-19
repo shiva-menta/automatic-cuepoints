@@ -74,8 +74,18 @@ def fetch_rekordbox_playlists(encryption_key: str) -> List[str]:
     Returns:
         List of playlist names
     """
-    # TODO: Implement actual playlist fetching
-    return []
+    from pyrekordbox import Rekordbox6Database
+
+    try:
+        if encryption_key:
+            db = Rekordbox6Database(key=encryption_key)
+        else:
+            db = Rekordbox6Database()
+
+        playlists = db.get_playlist()
+        return [playlist.Name for playlist in playlists if playlist.Name]
+    except Exception:
+        return []
 
 
 def process_cuepoints_add(encryption_key: str, playlist: str, model_type: ModelType, progress_callback) -> None:
@@ -420,19 +430,37 @@ class AutocuepointsGUI(QWidget):
         encryption_label = QLabel("Encryption Key:")
         self.encryption_input = QLineEdit()
         self.encryption_input.setPlaceholderText("Leave empty if not required")
-        self.encryption_input.textChanged.connect(self._on_encryption_key_changed)
 
         # Playlist dropdown
         playlist_label = QLabel("Playlist:")
         self.playlist_dropdown = QComboBox()
         self.playlist_dropdown.addItem("Select playlist...")
-        self.playlist_dropdown.setEnabled(False)
 
         # Refresh playlists button
         playlist_row = QHBoxLayout()
         playlist_row.addWidget(self.playlist_dropdown, stretch=1)
         self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.setFixedWidth(70)
+        self.refresh_button.setFixedWidth(90)
+        self.refresh_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1976d2;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1565c0;
+            }
+            QPushButton:pressed {
+                background-color: #0d47a1;
+            }
+            QPushButton:disabled {
+                background-color: #bdbdbd;
+                color: #757575;
+            }
+        """)
         self.refresh_button.clicked.connect(self._on_refresh_playlists)
         playlist_row.addWidget(self.refresh_button)
 
@@ -605,10 +633,6 @@ class AutocuepointsGUI(QWidget):
             # If remote was selected, switch back to local
             if self.remote_radio.isChecked():
                 self.local_radio.setChecked(True)
-
-    def _on_encryption_key_changed(self, text: str):
-        # Enable playlist dropdown when we have potential to fetch
-        self.playlist_dropdown.setEnabled(True)
 
     def _on_refresh_playlists(self):
         encryption_key = self.encryption_input.text()

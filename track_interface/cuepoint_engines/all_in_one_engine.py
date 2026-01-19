@@ -4,7 +4,8 @@ from track_interface.cuepoint_engines.heuristics import (
     SongEndCuepoint,
     SongStartCuepoint,
 )
-from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid, CuepointEngine
+from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
+from track_interface.types import BeatGrid, CuepointList
 from track_interface.cuepoint_engines.cache import (
     CACHE_ENABLED,
     convert_to_key,
@@ -16,7 +17,7 @@ from scipy.ndimage import gaussian_filter
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from typing import List, Literal, Any, Tuple, Optional
+from typing import Literal, Any, Optional
 from dataclasses import dataclass
 import modal
 import hashlib
@@ -97,7 +98,7 @@ class AllInOneEngine(CuepointEngine):
             self.params = AllInOneEngineParams()
         self.func = modal.Function.from_name("automatic-cuepoints", "process_audio")
 
-    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> List[int]:
+    def generate_cuepoints(self, file_path: str, beat_grid: BeatGrid) -> CuepointList:
         """
         Generates cuepoint placement in milliseconds.
 

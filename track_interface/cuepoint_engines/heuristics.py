@@ -1,6 +1,8 @@
 import math
 from abc import abstractmethod
-from typing import List, Tuple
+from typing import Tuple
+
+from track_interface.types import CuepointList
 
 
 class Heuristic:
@@ -11,8 +13,8 @@ class Heuristic:
     @staticmethod
     @abstractmethod
     def apply(
-        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
-    ) -> List[int]:
+        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+    ) -> CuepointList:
         pass
 
 
@@ -22,7 +24,7 @@ class FirstBeatsOnly(Heuristic):
     """
 
     @staticmethod
-    def _get_closest_timestamp_to_target(timestamps: List[int], tgt: int) -> int:
+    def _get_closest_timestamp_to_target(timestamps: CuepointList, tgt: int) -> int:
         closest_idx, closest_dist = 0, abs(tgt - timestamps[0])
         l, r = 0, len(timestamps) - 1
 
@@ -39,8 +41,8 @@ class FirstBeatsOnly(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
-    ) -> List[int]:
+        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+    ) -> CuepointList:
         if not cuepoint_timestamps:
             return []
         return [
@@ -73,8 +75,8 @@ class RestrictedMeasureIncrements(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
-    ) -> List[int]:
+        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+    ) -> CuepointList:
         if not cuepoint_timestamps:
             return []
         timestamp_to_measure = {
@@ -142,8 +144,8 @@ class SongStartCuepoint(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
-    ) -> List[int]:
+        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+    ) -> CuepointList:
         if not cuepoint_timestamps:
             return []
         timestamp_to_measure = {
@@ -178,8 +180,8 @@ class FirstBeatCuepoint(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
-    ) -> List[int]:
+        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+    ) -> CuepointList:
         if not cuepoint_timestamps:
             return []
         if cuepoint_timestamps[0] != first_beat_timestamps[0]:
@@ -194,8 +196,8 @@ class SongEndCuepoint(Heuristic):
 
     @staticmethod
     def apply(
-        first_beat_timestamps: List[int], cuepoint_timestamps: List[int]
-    ) -> List[int]:
+        first_beat_timestamps: CuepointList, cuepoint_timestamps: CuepointList
+    ) -> CuepointList:
         if not cuepoint_timestamps:
             return []
         if cuepoint_timestamps[-1] == first_beat_timestamps[-1]:

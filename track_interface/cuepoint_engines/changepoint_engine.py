@@ -1,6 +1,5 @@
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
-
-from track_interface.cuepoint_engines.cuepoint_engine import BeatGrid
+from track_interface.types import BeatGrid
 
 
 class ChangePointEngine(CuepointEngine):

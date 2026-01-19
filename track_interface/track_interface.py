@@ -1,7 +1,9 @@
 import datetime
 import json
-from typing import Dict, List, Tuple
+from typing import Dict
 from uuid import uuid4
+
+from track_interface.types import BeatGrid, CuepointList
 
 from pyrekordbox.anlz import AnlzFile
 from pyrekordbox.db6 import ContentCue, DjmdCue, DjmdSongPlaylist
@@ -25,7 +27,7 @@ class TrackInterface:
         self.content_uuid = self.song_content.UUID
         self.db = db
 
-    def read_beat_grid(self) -> List[Tuple[int, float, int]]:
+    def read_beat_grid(self) -> BeatGrid:
         # Tuple[0] = Beat Number (1-4)
         # Tuple[1] = Tempo
         # Tuple[2] = Time (sec)
@@ -214,7 +216,7 @@ class TrackInterface:
 
         self.db.commit()
 
-    def read_hot_cues(self) -> List[int]:
+    def read_hot_cues(self) -> CuepointList:
         query = self.db.get_content_cue(ContentID=self.content_id)
         if query.count() > 1:
             raise ValueError(
@@ -234,7 +236,7 @@ class TrackInterface:
 
         return djmd_content_entry.FolderPath
 
-    def _get_first_beat_timestamps(self) -> List[int]:
+    def _get_first_beat_timestamps(self) -> CuepointList:
         return [
             beat_tuple[2] for beat_tuple in self.read_beat_grid() if beat_tuple[0] == 1
         ]

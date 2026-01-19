@@ -94,6 +94,16 @@ def get_cuepoint_engine_performance_metrics(
                                                              beat_grid=beat_grid)
     labeled_cuepoints = hot_cues
 
+    # Get first first-beat timestamp to exclude from metrics
+    first_beat_timestamp = next(
+        (beat[2] for beat in beat_grid if beat[0] == 1), None
+    )
+
+    # Filter out cuepoints at the first first-beat timestamp
+    if first_beat_timestamp is not None:
+        estimated_cuepoints = [cp for cp in estimated_cuepoints if cp.timestamp != first_beat_timestamp]
+        labeled_cuepoints = [cp for cp in labeled_cuepoints if cp.timestamp != first_beat_timestamp]
+
     estimated_idx = labeled_idx = 0
     tp = fp = fn = 0
     while estimated_idx < len(estimated_cuepoints) or labeled_idx < len(

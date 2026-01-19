@@ -1,17 +1,4 @@
-import os
-import sys
-import multiprocessing
-from enum import Enum
-
-# Get the directory where this script is located (handles PyInstaller bundling)
-if getattr(sys, 'frozen', False):
-    SCRIPT_DIR = sys._MEIPASS
-else:
-    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODAL_ICON_PATH = os.path.join(SCRIPT_DIR, "Modal-IconMark.png")
-
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QPainter, QColor, QPixmap
+from typing import List
 from PyQt5.QtWidgets import (
     QApplication,
     QComboBox,
@@ -29,8 +16,19 @@ from PyQt5.QtWidgets import (
     QToolButton,
     QSizePolicy,
 )
+from PyQt5.QtGui import QPainter, QColor, QPixmap
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+import os
+import sys
+import multiprocessing
+from enum import Enum
 
-from typing import List
+# Get the directory where this script is located (handles PyInstaller bundling)
+if getattr(sys, 'frozen', False):
+    SCRIPT_DIR = sys._MEIPASS
+else:
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODAL_ICON_PATH = os.path.join(SCRIPT_DIR, "Modal-IconMark.png")
 
 
 # =============================================================================
@@ -52,19 +50,18 @@ class ModelType(Enum):
 # Stub Functions - Fill these out
 # =============================================================================
 
-def deploy_to_modal(token_id: str, token_secret: str) -> bool:
+def validate_modal_credentials(token_id: str, token_secret: str) -> bool:
     """
-    Deploy to Modal cloud.
+    Validate Modal credentials.
 
     Args:
         token_id: The Modal Token ID
         token_secret: The Modal Token Secret
 
     Returns:
-        True if deployment succeeded, False otherwise
+        True if credentials are valid (non-empty), False otherwise
     """
-    # TODO: Implement actual Modal deployment
-    pass
+    return bool(token_id and token_secret)
 
 
 def fetch_rekordbox_playlists(encryption_key: str) -> List[str]:
@@ -233,20 +230,6 @@ class CollapsibleSection(QWidget):
 # Worker Threads
 # =============================================================================
 
-class DeploymentWorker(QThread):
-    """Worker thread for Modal deployment."""
-    finished = pyqtSignal(bool)  # True = success, False = failure
-
-    def __init__(self, token_id: str, token_secret: str):
-        super().__init__()
-        self.token_id = token_id
-        self.token_secret = token_secret
-
-    def run(self):
-        result = deploy_to_modal(self.token_id, self.token_secret)
-        self.finished.emit(result if result is not None else False)
-
-
 class CuepointWorker(QThread):
     """Worker thread for cuepoint processing."""
     progress_changed = pyqtSignal(int)
@@ -414,47 +397,19 @@ class AutocuepointsGUI(QWidget):
         token_id_label = QLabel("Token ID:")
         self.token_id_input = QLineEdit()
         self.token_id_input.setPlaceholderText("Enter Modal Token ID...")
+        self.token_id_input.textChanged.connect(self._on_modal_credentials_changed)
 
         # Token Secret
         token_secret_label = QLabel("Token Secret:")
         self.token_secret_input = QLineEdit()
         self.token_secret_input.setEchoMode(QLineEdit.Password)
         self.token_secret_input.setPlaceholderText("Enter Modal Token Secret...")
-
-        # Deploy button
-        deploy_layout = QHBoxLayout()
-        self.deploy_button = QPushButton("Deploy")
-        self.deploy_button.setFixedWidth(100)
-        self.deploy_button.setStyleSheet("""
-            QPushButton {
-                background-color: #1976d2;
-                color: #ffffff;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1565c0;
-            }
-            QPushButton:pressed {
-                background-color: #0d47a1;
-            }
-            QPushButton:disabled {
-                background-color: #bdbdbd;
-                color: #757575;
-            }
-        """)
-        self.deploy_button.clicked.connect(self._on_deploy_clicked)
-
-        deploy_layout.addWidget(self.deploy_button)
-        deploy_layout.addStretch()
+        self.token_secret_input.textChanged.connect(self._on_modal_credentials_changed)
 
         self.modal_section.add_widget(token_id_label)
         self.modal_section.add_widget(self.token_id_input)
         self.modal_section.add_widget(token_secret_label)
         self.modal_section.add_widget(self.token_secret_input)
-        self.modal_section.add_layout(deploy_layout)
 
     def _setup_cuepoints_section(self):
         # Rekordbox GroupBox
@@ -568,7 +523,7 @@ class AutocuepointsGUI(QWidget):
         remote_layout.addStretch()
 
         # Remote disabled notice (warning style like Rekordbox disclaimer)
-        self.remote_notice = QLabel("⚠ Deploy Modal first")
+        self.remote_notice = QLabel("⚠ Enter Modal credentials first")
         self.remote_notice.setStyleSheet("color: #ff9800; font-size: 11px; padding: 4px; margin-left: 20px;")
 
         model_layout.addWidget(local_widget)
@@ -629,35 +584,27 @@ class AutocuepointsGUI(QWidget):
     # Event Handlers
     # =========================================================================
 
-    def _on_deploy_clicked(self):
+    def _on_modal_credentials_changed(self):
         token_id = self.token_id_input.text()
         token_secret = self.token_secret_input.text()
-        if not token_id or not token_secret:
-            return
 
-        self.deploy_button.setEnabled(False)
-        self.deploy_button.setText("Deploying...")
-
-        self.deployment_worker = DeploymentWorker(token_id, token_secret)
-        self.deployment_worker.finished.connect(self._on_deployment_finished)
-        self.deployment_worker.start()
-
-    def _on_deployment_finished(self, success: bool):
-        self.deploy_button.setEnabled(True)
-        self.deploy_button.setText("Deploy")
-
-        if success:
+        if validate_modal_credentials(token_id, token_secret):
             self._deployment_status = DeploymentStatus.SUCCESS
             self.status_indicator.set_status(DeploymentStatus.SUCCESS)
             self.remote_radio.setEnabled(True)
             self.remote_notice.setVisible(False)
+
+            os.environ["MODAL_TOKEN_ID"] = token_id
+            os.environ["MODAL_TOKEN_SECRET"] = token_secret
         else:
-            self._deployment_status = DeploymentStatus.FAILED
-            self.status_indicator.set_status(DeploymentStatus.FAILED)
+            self._deployment_status = DeploymentStatus.IDLE
+            self.status_indicator.set_status(DeploymentStatus.IDLE)
             self.remote_radio.setEnabled(False)
-            self.remote_notice.setText("⚠ Deployment failed - check credentials")
-            self.remote_notice.setStyleSheet("color: #f44336; font-size: 11px; padding: 4px; margin-left: 20px;")
+            self.remote_notice.setText("⚠ Enter Modal credentials first")
             self.remote_notice.setVisible(True)
+            # If remote was selected, switch back to local
+            if self.remote_radio.isChecked():
+                self.local_radio.setChecked(True)
 
     def _on_encryption_key_changed(self, text: str):
         # Enable playlist dropdown when we have potential to fetch

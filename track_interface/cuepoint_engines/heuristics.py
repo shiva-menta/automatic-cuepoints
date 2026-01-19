@@ -207,3 +207,26 @@ class SongEndCuepoint(Heuristic):
         if cuepoints[-1].timestamp == first_beat_timestamps[-1]:
             cuepoints.pop()
         return cuepoints
+
+
+class MergeAdjacentLabels(Heuristic):
+    """
+    Merges adjacent cuepoints if they have non-empty equivalent labels.
+    Keeps the first cuepoint of each sequence of matching labels.
+    """
+
+    @staticmethod
+    def apply(
+        first_beat_timestamps: TimestampList, cuepoints: CuepointList
+    ) -> CuepointList:
+        if not cuepoints:
+            return []
+
+        merged = [cuepoints[0]]
+        for cuepoint in cuepoints[1:]:
+            prev_label = merged[-1].label
+            curr_label = cuepoint.label
+            if prev_label and curr_label and prev_label != curr_label:
+                merged.append(cuepoint)
+
+        return merged

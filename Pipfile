@@ -9,17 +9,14 @@ setuptools = "*"
 ruptures = "*"
 librosa = "*"
 tqdm = "*"
-pyqt5 = {version = "*", markers = "sys_platform == 'darwin'"}
+pyqt5 = { markers = "sys_platform == 'darwin'"}
 pyinstaller = "*"
 sqlcipher3-wheels = "*"
 matplotlib = "*"
 demucs = "*"
 xgboost = "*"
 scikit-learn = "*"
-opencv-python = "*"
-audio-separator = {extras = ["cpu"], version = "*"}
-anthropic = "*"
-google-generativeai = "*"
+audio-separator = {extras = ["cpu"] }
 modal = "*"
 torch = ">=2.5.0,<2.6.0"
 torchvision = "*"

@@ -117,44 +117,14 @@ class AllInOneEngine(CuepointEngine):
         file_name = hashlib.md5(file_path.encode()).hexdigest() + ".wav"
 
         segments_seconds = self.func.remote(audio_bytes, file_name)
-        changepoints = []
+        cuepoints = []
 
         for segment in segments_seconds:
-            start, end, label = segment["start"], segment["end"], segment["label"]
-            for point in [start, end]:
-                if not changepoints or point != changepoints[-1]:
-                    changepoints.append(point)
-
-        # Convert segments from seconds to milliseconds
-        segments_ms = [segment * 1000.0 for segment in changepoints]
-
-        # Snap to beat_grid (find nearest beat for each segment)
-        first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
-        snapped_cuepoints = []
-
-        for segment_ms in segments_ms:
-            # Find the closest first beat timestamp
-            idx = bisect.bisect_left(first_beat_timestamps, segment_ms)
-
-            # Check both the position before and after to find the closest
-            closest_beat = None
-            if idx == 0:
-                closest_beat = first_beat_timestamps[0]
-            elif idx == len(first_beat_timestamps):
-                closest_beat = first_beat_timestamps[-1]
-            else:
-                before = first_beat_timestamps[idx - 1]
-                after = first_beat_timestamps[idx]
-                closest_beat = before if abs(segment_ms - before) < abs(segment_ms - after) else after
-
-            if closest_beat is not None:
-                snapped_cuepoints.append(int(closest_beat))
-
-        # Remove duplicates and sort
-        change_points = sorted(list(set(snapped_cuepoints)))
-
-        # Convert to CuepointList format with empty labels
-        cuepoints: CuepointList = [Cuepoint(timestamp=ts, label="") for ts in change_points]
+            start, _, label = segment["start"], segment["end"], segment["label"]
+            cuepoints.append(Cuepoint(
+                timestamp=start * 1000.0,
+                label=label.upper()
+            ))
 
         # Heuristics
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)

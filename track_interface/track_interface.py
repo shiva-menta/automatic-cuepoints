@@ -241,7 +241,7 @@ class TrackInterface:
             beat_tuple[2] for beat_tuple in self.read_beat_grid() if beat_tuple[0] == 1
         ]
 
-    def _color_label_cuepoints(self, cuepoints):
+    def _color_label_cuepoints(self, cuepoints, labels: list[str]):
         first_beat_timestamps = self._get_first_beat_timestamps()
         timestamp_to_measure = {
             timestamp: idx for idx, timestamp in enumerate(first_beat_timestamps)
@@ -259,16 +259,17 @@ class TrackInterface:
             )
 
             cuepoint.ColorTableIndex = self._measure_count_to_color(measure_count)
-            cuepoint.Comment = f"{measure_count}-COUNT"
+            cuepoint.Comment = f"{labels[idx]} ({measure_count})" if labels[idx] else f"{measure_count}-COUNT"
 
         return cuepoints
 
     def generate_cuepoints(self, cuepoints: CuepointList) -> None:
         self.clear_hot_cues()
 
+        labels = [cuepoint.label for cuepoint in cuepoints]
         cuepoint_objs = [
             self.get_djmd_cue(cuepoint.timestamp, kind=idx + 1)
             for idx, cuepoint in enumerate(cuepoints)
         ]
-        cuepoint_objs = self._color_label_cuepoints(cuepoint_objs)
+        cuepoint_objs = self._color_label_cuepoints(cuepoint_objs, labels)
         self.add_hot_cues(cuepoint_objs)

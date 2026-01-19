@@ -17,6 +17,9 @@ from typing import Optional
 from dataclasses import dataclass
 import modal
 import hashlib
+import soundfile as sf
+import io
+import librosa
 
 # Modal App Configs
 app = modal.App("automatic-cuepoints")
@@ -105,10 +108,10 @@ class AllInOneEngine(CuepointEngine):
         Returns:
             List of cuepoint timestamps in milliseconds
         """
-        # Convert file_path to bytes
-        with open(file_path, 'rb') as f:
-            audio_bytes = f.read()
-        # todo(smenta) - might need to fix based on proper file extension
+        y, sr = librosa.load(file_path, sr=None, mono=False)
+        wav_buffer = io.BytesIO()
+        sf.write(wav_buffer, y.T if y.ndim > 1 else y, sr, format='WAV')
+        audio_bytes = wav_buffer.getvalue()
         file_name = hashlib.md5(file_path.encode()).hexdigest() + ".wav"
 
         segments_seconds = self.func.remote(audio_bytes, file_name)

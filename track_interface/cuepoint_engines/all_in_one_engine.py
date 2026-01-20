@@ -3,7 +3,8 @@ from track_interface.cuepoint_engines.heuristics import (
     RestrictedMeasureIncrements,
     SongEndCuepoint,
     SongStartCuepoint,
-    MergeAdjacentLabels
+    MergeAdjacentLabels,
+    DPMeasureAlignment
 )
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 from track_interface.types import BeatGrid, Cuepoint, CuepointList
@@ -129,9 +130,9 @@ class AllInOneEngine(CuepointEngine):
         for heuristic in [
             FirstBeatsOnly,
             SongStartCuepoint,
-            RestrictedMeasureIncrements,
             SongEndCuepoint,
-            MergeAdjacentLabels
+            MergeAdjacentLabels,
+            DPMeasureAlignment,
         ]:
             cuepoints = heuristic.apply(first_beat_timestamps, cuepoints)
 

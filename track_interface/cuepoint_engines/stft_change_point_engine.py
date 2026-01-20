@@ -18,6 +18,7 @@ from track_interface.cuepoint_engines.heuristics import (
     RestrictedMeasureIncrements,
     SongEndCuepoint,
     SongStartCuepoint,
+    DPMeasureAlignment
 )
 
 from track_interface.types import BeatGrid, Cuepoint, CuepointList
@@ -149,8 +150,8 @@ class StftChangePointEngine(ChangePointEngine):
         for heuristic in [
             FirstBeatsOnly,
             SongStartCuepoint,
-            RestrictedMeasureIncrements,
             SongEndCuepoint,
+            DPMeasureAlignment,
         ]:
             cuepoints = heuristic.apply(first_beat_timestamps, cuepoints)
 

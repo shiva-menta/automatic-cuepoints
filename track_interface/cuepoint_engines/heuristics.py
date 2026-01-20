@@ -230,3 +230,111 @@ class MergeAdjacentLabels(Heuristic):
                 merged.append(cuepoint)
 
         return merged
+
+
+class DPMeasureAlignment(Heuristic):
+    """
+    Uses dynamic programming to find optimal cuepoint-to-measure assignment
+    minimizing total displacement + interval penalty cost.
+
+    Unlike RestrictedMeasureIncrements which greedily assigns each cuepoint,
+    this finds the globally optimal assignment across all cuepoints.
+    """
+
+    # === Cost Parameters (tune these to adjust behavior) ===
+    MAX_DISPLACEMENT = 2          # max measures a cuepoint can move from original
+    DISPLACEMENT_WEIGHT = 0.5     # multiplier for displacement cost
+
+    # Interval costs (lower = preferred)
+    COST_POWER_OF_TWO = 0.0       # best: intervals that are powers of 2 (2, 4, 8, 16, ...)
+    COST_ONE_OR_TWO = 0.5         # okay: intervals of 1 or 2 measures
+    COST_MULTIPLE_OF_FOUR = 1.0   # good: intervals divisible by 4 (but not power of 2)
+    COST_IRREGULAR = 2.0          # penalty for other intervals
+
+    @classmethod
+    def interval_cost(cls, prev_measure: int, curr_measure: int) -> float:
+        """Compute cost for the interval between two consecutive cuepoints."""
+        diff = curr_measure - prev_measure
+        if diff <= 0:
+            return float('inf')  # invalid: must move forward
+
+        # Best: powers of 2
+        if diff & (diff - 1) == 0:
+            return cls.COST_POWER_OF_TWO
+        # Okay: 1 or 2
+        if diff in (1, 2):
+            return cls.COST_ONE_OR_TWO
+        # Good: multiples of 4
+        if diff % 4 == 0:
+            return cls.COST_MULTIPLE_OF_FOUR
+        # Penalty for irregular intervals
+        return cls.COST_IRREGULAR
+
+    @classmethod
+    def displacement_cost(cls, original: int, assigned: int) -> float:
+        """Cost of moving a cuepoint from its original to assigned measure."""
+        return abs(original - assigned) * cls.DISPLACEMENT_WEIGHT
+
+    @classmethod
+    def apply(
+        cls, first_beat_timestamps: TimestampList, cuepoints: CuepointList
+    ) -> CuepointList:
+        if len(cuepoints) <= 1:
+            return cuepoints
+
+        timestamp_to_measure = {ts: idx for idx, ts in enumerate(first_beat_timestamps)}
+        original_measures = [timestamp_to_measure[cp.timestamp] for cp in cuepoints]
+        num_measures = len(first_beat_timestamps)
+        n = len(cuepoints)
+
+        # dp[i][m] = (min_cost, backpointer to previous measure)
+        # Only consider measures within MAX_DISPLACEMENT of original for efficiency
+        dp = [{} for _ in range(n)]
+
+        # Base case: first cuepoint
+        orig_0 = original_measures[0]
+        for m in range(
+            max(0, orig_0 - cls.MAX_DISPLACEMENT),
+            min(num_measures, orig_0 + cls.MAX_DISPLACEMENT + 1),
+        ):
+            dp[0][m] = (cls.displacement_cost(orig_0, m), None)
+
+        # Fill DP table
+        for i in range(1, n):
+            orig_i = original_measures[i]
+            for m in range(
+                max(0, orig_i - cls.MAX_DISPLACEMENT),
+                min(num_measures, orig_i + cls.MAX_DISPLACEMENT + 1),
+            ):
+                disp_cost = cls.displacement_cost(orig_i, m)
+                best_cost, best_prev = float('inf'), None
+
+                for prev_m, (prev_cost, _) in dp[i - 1].items():
+                    if prev_m >= m:
+                        continue  # must be strictly increasing
+                    total = prev_cost + disp_cost + cls.interval_cost(prev_m, m)
+                    if total < best_cost:
+                        best_cost, best_prev = total, prev_m
+
+                if best_prev is not None:
+                    dp[i][m] = (best_cost, best_prev)
+
+        # Handle case where no valid path exists
+        if not dp[n - 1]:
+            return cuepoints
+
+        # Backtrack to find optimal assignment
+        best_final_m = min(dp[n - 1].keys(), key=lambda m: dp[n - 1][m][0])
+
+        assigned_measures = [None] * n
+        m = best_final_m
+        for i in range(n - 1, -1, -1):
+            assigned_measures[i] = m
+            if i > 0:
+                m = dp[i][m][1]
+
+        # Build result
+        return [
+            Cuepoint(timestamp=first_beat_timestamps[m], label=cuepoints[i].label)
+            for i, m in enumerate(assigned_measures)
+        ]

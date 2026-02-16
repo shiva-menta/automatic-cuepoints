@@ -31,6 +31,7 @@ def add_cuepoints_to_test_data(args):
         model=args.model,
         num_processes=args.num_processes,
         num_songs=args.num_songs,
+        use_cache=not args.force_calculate,
     )
 
     # Use tqdm for progress display
@@ -104,7 +105,7 @@ def get_cuepoint_engine_performance_metrics(
 
 def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
     """Worker function to process a single song's metrics."""
-    model_str, debug_mode, file_path, beat_grid, hot_cues = song_data
+    model_str, debug_mode, force_calculate, file_path, beat_grid, hot_cues = song_data
     # Initialize engine
     params = None
     match model_str:
@@ -120,6 +121,7 @@ def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
         case "all_in_one":
             params = AllInOneEngineParams(
                 debug_mode=debug_mode,
+                use_cache=not force_calculate,
             )
 
     model_inst = _ENGINE_MAP[model_str](params=params)
@@ -144,6 +146,7 @@ def get_error_metrics(args):
         songs_data.append((
             args.model,
             args.debug,
+            args.force_calculate,
             ti.get_content_filepath(),
             ti.read_beat_grid(),
             ti.read_hot_cues(),
@@ -222,6 +225,8 @@ def main():
     parser.add_argument("--default-track", action="store_true", default=False,
                         help="Runs cuepoint calculation on only default track + add visualizer for certain engines.")
     parser.add_argument("--num-songs", type=int, default=0, help="Number of songs to calculate metrics for.")
+    parser.add_argument("--force-calculate", action="store_true", default=False,
+                        help="Bypass cache and force Modal API calls")
 
     args = parser.parse_args()
 

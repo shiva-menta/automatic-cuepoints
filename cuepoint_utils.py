@@ -11,7 +11,7 @@ from pyrekordbox import Rekordbox6Database
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 from track_interface.cuepoint_engines.recurrence_engine import RecurrenceEngine
 from track_interface.cuepoint_engines.stft_change_point_engine import StftChangePointEngine
-from track_interface.cuepoint_engines.all_in_one_engine import AllInOneEngine
+from track_interface.cuepoint_engines.all_in_one_engine import AllInOneEngine, AllInOneEngineParams
 from track_interface.track_interface import TrackInterface
 from track_interface.types import CuepointList
 
@@ -31,12 +31,13 @@ class CuepointProcessingArgs:
     num_processes: int = 4
     encryption_key: Optional[str] = None
     num_songs: int = 0  # 0 means no limit (process all songs)
+    use_cache: bool = True  # When False, bypasses cache (force calculate)
 
 
 def _get_cuepoints_worker(song_data: Tuple) -> Tuple[str, CuepointList]:
     """Worker function to generate cuepoints for a single track."""
-    model_str, file_path, beat_grid = song_data
-    cuepoint_engine: CuepointEngine = ENGINE_MAP[model_str](params=None)
+    model_str, file_path, beat_grid, params = song_data
+    cuepoint_engine: CuepointEngine = ENGINE_MAP[model_str](params=params)
     return (file_path, cuepoint_engine.generate_cuepoints(file_path=file_path, beat_grid=beat_grid))
 
 
@@ -73,6 +74,11 @@ def add_cuepoints_to_playlist(
     songs_data = []
     filepath_to_interface: Dict[str, TrackInterface] = {}
 
+    # Build params based on model type
+    params = None
+    if args.model == "all_in_one":
+        params = AllInOneEngineParams(use_cache=args.use_cache)
+
     for song in playlist.Songs:
         ti = TrackInterface(song, db)
         filepath = ti.get_content_filepath()
@@ -81,6 +87,7 @@ def add_cuepoints_to_playlist(
             args.model,
             filepath,
             ti.read_beat_grid(),
+            params,
         ))
     if args.num_songs > 0:
         songs_data = songs_data[:args.num_songs]

@@ -226,7 +226,7 @@ class MergeAdjacentLabels(Heuristic):
         for cuepoint in cuepoints[1:]:
             prev_label = merged[-1].label
             curr_label = cuepoint.label
-            if prev_label and curr_label and prev_label != curr_label:
+            if not (prev_label and curr_label and prev_label == curr_label):
                 merged.append(cuepoint)
 
         return merged

@@ -14,6 +14,7 @@ a = Analysis(
         "ruptures",
         "modal",
         "pyrekordbox",
+        "diskcache",
     ],
     hookspath=[],
     hooksconfig={},

@@ -79,6 +79,9 @@ class AllInOneEngine(CuepointEngine):
 
         for segment in segments_seconds:
             start, _, label = segment["start"], segment["end"], segment["label"]
+            if start == 0:
+                # Skip the first cuepoint as we will add this back later in heuristics secion.
+                continue
             cuepoints.append(Cuepoint(
                 timestamp=start * 1000.0,
                 label=label.upper()

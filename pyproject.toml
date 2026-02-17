@@ -1,0 +1,48 @@
+[project]
+name = "automatic-cuepoints"
+version = "0.1.0"
+description = "Automatically place cue points on tracks for easier mixing"
+requires-python = ">=3.12"
+
+dependencies = [
+    "pyrekordbox",
+    "setuptools",
+    "ruptures",
+    "librosa>=0.10.0",
+    "tqdm",
+    "matplotlib",
+    "scipy",
+    "numpy<2.0.0",
+    "numba>=0.59.0",
+    "diskcache",
+    "demucs>=4.0.0",
+    "xgboost",
+    "scikit-learn",
+    "allin1>=1.1.0",
+    "torch>=2.5.0,<2.6.0",
+    "torchvision",
+    "audio-separator[cpu]",
+    "sqlcipher3-wheels",
+    "modal",
+    "pyinstaller",
+    "madmom @ git+https://github.com/CPJKU/madmom.git",
+    "pyqt5; sys_platform == 'darwin'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipykernel",
+    "ruff",
+    "isort",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv]
+package = false
+python-preference = "only-system"

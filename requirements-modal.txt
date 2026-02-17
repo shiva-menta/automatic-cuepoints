@@ -1,0 +1,21 @@
+# Core library for music structure analysis
+allin1>=1.1.0
+
+# PyTorch - match the NATTEN wheel version
+torch>=2.5.0,<2.6.0
+torchaudio>=2.5.0,<2.6.0
+
+# Required by allin1/demucs
+demucs>=4.0.0
+librosa>=0.10.0
+scipy
+soundfile
+
+# Transitive deps that need explicit install
+huggingface-hub
+hydra-core
+omegaconf
+numpy<2.0.0
+matplotlib
+tqdm
+madmom @ git+https://github.com/CPJKU/madmom.git

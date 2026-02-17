@@ -55,9 +55,9 @@ docker buildx build --platform linux/amd64 -f cuda.Dockerfile -t smenta/automati
 ```
 
 ### Modal Serverless Function
-If any changes are made in `track_interface/cuepoint_engines/all_in_one_engine:process_audio` you'll need to redeploy the Modal serverless function so any updates are propagated to Modal.
+If any changes are made in `track_interface/cuepoint_engines/modal_app:process_audio` you'll need to redeploy the Modal serverless function so any updates are propagated to Modal.
 ```
-modal deploy track_interface/cuepoint_engines/all_in_one_engine.py
+modal deploy track_interface/cuepoint_engines/modal_app.py
 ```
 
 ## Rebuilding App
@@ -70,8 +70,6 @@ You can then find and run this app under: `automatic-cuepoints/dist/`.
 
 ## In-Progress Work
 - Pre-download demucs model in `:cuda` Docker image to speed up cold starts.
-- Fix RestrictedMeasureIncrements heuristic.
-- Create separate dependency requirement list for allin1 Docker image.
 - Rewrite allin1 repo with modern dependencies (e.g. new version of NATTEN) for better performance / maintainability.
 - Add automations for republishing Docker images + app builds.
 - Add speed / cost statistics for allin1 engine to add better estimates for number of songs that you can analyze per month (under Modal free plan).

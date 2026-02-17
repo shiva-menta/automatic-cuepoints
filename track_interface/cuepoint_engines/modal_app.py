@@ -11,7 +11,7 @@ _DEMIX_DIR = f"{cache_mount_path}/demix_outputs/"
 _SPEC_DIR = f"{cache_mount_path}/spec_outputs/"
 
 allin1_image = modal.Image.from_registry(
-    "smenta/automatic-cuepoints:cuda-test",
+    "smenta/automatic-cuepoints:cuda",
 )
 
 

@@ -71,7 +71,7 @@ class AllInOneEngine(CuepointEngine):
             audio_bytes = wav_buffer.getvalue()
             file_name = cache_key + ".wav"
 
-            segments_seconds = self.func.remote(audio_bytes, file_name)
+            segments_seconds = self.func.remote(audio_bytes, file_name, not self.params.use_cache)
             # Store result in cache
             self.cache[cache_key] = segments_seconds
 

@@ -213,21 +213,56 @@ class MergeAdjacentLabels(Heuristic):
     """
     Merges adjacent cuepoints if they have non-empty equivalent labels.
     Keeps the first cuepoint of each sequence of matching labels.
+
+    Skips merging if the resulting segment would exceed MAX_SEGMENT_MEASURES,
+    to prevent over-merging that creates unnaturally long segments.
     """
 
-    @staticmethod
+    # Maximum segment length in measures. If merging would create a segment
+    # longer than this, the merge is skipped.
+    MAX_SEGMENT_MEASURES = 32
+
+    @classmethod
     def apply(
-        first_beat_timestamps: TimestampList, cuepoints: CuepointList
+        cls, first_beat_timestamps: TimestampList, cuepoints: CuepointList
     ) -> CuepointList:
         if not cuepoints:
             return []
 
+        # Build timestamp to measure mapping for segment length calculation
+        timestamp_to_measure = {ts: idx for idx, ts in enumerate(first_beat_timestamps)}
+        total_measures = len(first_beat_timestamps)
+
         merged = [cuepoints[0]]
-        for cuepoint in cuepoints[1:]:
+        for i, cuepoint in enumerate(cuepoints[1:], start=1):
             prev_label = merged[-1].label
             curr_label = cuepoint.label
-            if not (prev_label and curr_label and prev_label == curr_label):
-                merged.append(cuepoint)
+
+            # Check if labels match and both are non-empty (potential merge)
+            if prev_label and curr_label and prev_label == curr_label:
+                # Calculate resulting segment length if we merge
+                merged_start_ts = merged[-1].timestamp
+                if merged_start_ts in timestamp_to_measure:
+                    merged_start_measure = timestamp_to_measure[merged_start_ts]
+
+                    # Find the end of the merged segment (next cuepoint or end of song)
+                    if i + 1 < len(cuepoints) and cuepoints[i + 1].timestamp in timestamp_to_measure:
+                        segment_end_measure = timestamp_to_measure[cuepoints[i + 1].timestamp]
+                    else:
+                        segment_end_measure = total_measures
+
+                    segment_length = segment_end_measure - merged_start_measure
+
+                    # Skip merge if segment would be too long
+                    if segment_length > cls.MAX_SEGMENT_MEASURES:
+                        merged.append(cuepoint)
+                        continue
+
+                # Labels match and segment is within limit - skip this cuepoint (merge)
+                continue
+
+            # Labels don't match or one is empty - keep the cuepoint
+            merged.append(cuepoint)
 
         return merged
 
@@ -241,15 +276,15 @@ class DPMeasureAlignment(Heuristic):
     this finds the globally optimal assignment across all cuepoints.
     """
 
-    # === Cost Parameters (tune these to adjust behavior) ===
+    # === Cost Parameters (tuned via US-005 parameter sweep) ===
     MAX_DISPLACEMENT = 2          # max measures a cuepoint can move from original
-    DISPLACEMENT_WEIGHT = 0.5     # multiplier for displacement cost
+    DISPLACEMENT_WEIGHT = 1.0     # multiplier for displacement cost (increased from 0.5)
 
     # Interval costs (lower = preferred)
     COST_POWER_OF_TWO = 0.0       # best: intervals that are powers of 2 (2, 4, 8, 16, ...)
     COST_ONE_OR_TWO = 0.5         # okay: intervals of 1 or 2 measures
     COST_MULTIPLE_OF_FOUR = 1.0   # good: intervals divisible by 4 (but not power of 2)
-    COST_IRREGULAR = 2.0          # penalty for other intervals
+    COST_IRREGULAR = 3.0          # penalty for other intervals (increased from 2.0)
 
     @classmethod
     def interval_cost(cls, prev_measure: int, curr_measure: int) -> float:

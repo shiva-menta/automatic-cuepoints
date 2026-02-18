@@ -29,9 +29,8 @@ class AllInOneEngineParams:
 
 class AllInOneEngine(CuepointEngine):
     """
-    All-in-one engine that combines multiple approaches for cuepoint generation.
-
-    TODO: Add description of the approach and methodology.
+    Cuepoint engine using allin1 segmentation via Modal GPU.
+    Post-processes with heuristics for beat alignment and section merging.
     """
     params: AllInOneEngineParams
 

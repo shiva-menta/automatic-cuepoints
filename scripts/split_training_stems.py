@@ -1,22 +1,13 @@
-import librosa as lb
-import ruptures as rpt
-import numpy as np
-import matplotlib.pyplot as plt
-
-import numpy as np
-import librosa
-import torch
-import torchaudio
-import matplotlib.pyplot as plt
-from pathlib import Path
-
-import numpy as np
-import librosa
-import torch
-import torchaudio
-import matplotlib.pyplot as plt
-from pathlib import Path
 import os
+from pathlib import Path
+
+import librosa
+import librosa as lb
+import matplotlib.pyplot as plt
+import numpy as np
+import ruptures as rpt
+import torch
+import torchaudio
 from audio_separator.separator import Separator
 
 

@@ -110,7 +110,7 @@ class TrackInterface:
                 return 32
 
     def get_djmd_cue(self, timestamp: int, kind: int = 1, color: int = -1):
-        # Kind = 4 for some reason is not a hot cue
+        # Kind 4 = memory cue, so skip it for hot cues
         id_ = str(self.db.generate_unused_id(DjmdCue))
         uuid = str(uuid4())
         return DjmdCue.create(

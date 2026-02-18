@@ -51,7 +51,7 @@ class StftChangePointEngine(ChangePointEngine):
 
     def _generate_frequency_data(self, file_path) -> List[List[float]]:
         """
-        Use STFT (Short Time Fourier Transform) to separate audio signal into XX frequency
+        Use STFT (Short Time Fourier Transform) to separate audio signal into 5 frequency
         buckets.
 
         Temporarily adding cache layer.

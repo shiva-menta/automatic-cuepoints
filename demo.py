@@ -2,7 +2,7 @@ import multiprocessing
 import argparse
 import os
 
-# Temp Ignore warnings
+# Ignore warnings
 import warnings
 from typing import Tuple, Dict
 

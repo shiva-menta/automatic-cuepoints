@@ -150,7 +150,3 @@ if __name__ == "__main__":
     output_folder_unlabeled = "/Users/shivamenta/Desktop/stems_recurrence_matrices"
     process_folder(input_folder, output_folder_unlabeled, load_cuepoints=False)
 
-    # Example 2: Generate labeled recurrence matrices (with cuepoints from Rekordbox)
-    # Uncomment the lines below to generate labeled matrices
-    # output_folder_labeled = "/Users/shivamenta/Desktop/labeled_recurrence_matrices"
-    # process_folder(input_folder, output_folder_labeled, load_cuepoints=True)

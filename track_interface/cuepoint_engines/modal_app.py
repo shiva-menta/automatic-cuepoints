@@ -44,9 +44,6 @@ def process_audio(audio_bytes: bytes, file_name: str, force_recalculate: bool = 
         "label": segment.label,
     } for segment in segments]
 
-    # todo(smenta) - figure out if we want to clear out the actual song data in file
-    # modal doesn't charge for volume storage yet, but once this is set - we can remove.
-
     # persist changes
     vol.commit()
 

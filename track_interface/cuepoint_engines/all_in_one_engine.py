@@ -88,13 +88,15 @@ class AllInOneEngine(CuepointEngine):
             ))
 
         # Heuristics
+        # Ordering validated in US-006: DP before Merge improves F0.75 by +0.0084
+        # See scripts/heuristic_ordering_validation.py for analysis
         first_beat_timestamps = self._get_first_beat_timestamps(beat_grid)
         for heuristic in [
             FirstBeatsOnly,
             SongStartCuepoint,
             SongEndCuepoint,
-            MergeAdjacentLabels,
             DPMeasureAlignment,
+            MergeAdjacentLabels,
         ]:
             cuepoints = heuristic.apply(first_beat_timestamps, cuepoints)
 

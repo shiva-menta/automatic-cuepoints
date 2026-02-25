@@ -63,10 +63,8 @@ modal deploy track_interface/cuepoint_engines/modal_app.py
 ## Rebuilding App
 We use PyInstaller to build a simple Mac app (built with PyQt) for this program.
 ```
-pyinstaller app.spec --noconfirm && mkdir dist/Autocuepoints.app/Contents/Frameworks/pyrekordbox
+uv run pyinstaller app.spec --noconfirm && open dist/Autocuepoints.app
 ```
-
-You can then find and run this app under: `automatic-cuepoints/dist/`.
 
 ## In-Progress Work
 - Pre-download demucs model in `:cuda` Docker image to speed up cold starts.

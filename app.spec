@@ -2,6 +2,7 @@
 import re
 import tomllib
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 # Parse dependencies from pyproject.toml to auto-generate hiddenimports
 # SPECPATH is provided by PyInstaller and points to the directory containing the spec file
@@ -34,11 +35,16 @@ hiddenimports = [
     parse_dependency(dep) for dep in pyproject["project"]["dependencies"]
 ]
 
+# Collect pyrekordbox package completely
+pyrekordbox_datas, pyrekordbox_binaries, pyrekordbox_hiddenimports = collect_all('pyrekordbox')
+hiddenimports += pyrekordbox_hiddenimports
+hiddenimports += collect_submodules('pyrekordbox')
+
 a = Analysis(
     ['app.py'],
     pathex=[],
-    binaries=[],
-    datas=[('Modal-IconMark.png', '.'), ('cuepoint_utils.py', '.'), ('track_interface', 'track_interface')],
+    binaries=pyrekordbox_binaries,
+    datas=[('Modal-IconMark.png', '.'), ('cuepoint_utils.py', '.'), ('track_interface', 'track_interface')] + pyrekordbox_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

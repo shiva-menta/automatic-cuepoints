@@ -48,7 +48,7 @@ class CBMEngineParams:
     bands_number: Optional[int] = 7  # None for full kernel, 7 for 7-band kernel
 
     # Post-processing parameters
-    novelty_threshold: float = 0.025  # Minimum novelty to keep a boundary
+    novelty_threshold: float = 0.05  # Minimum novelty to keep a boundary
 
     debug_mode: bool = False
 

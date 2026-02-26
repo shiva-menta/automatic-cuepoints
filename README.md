@@ -2,10 +2,10 @@
 Software to automatically place cue points on tracks for easier mixing.
 
 ## Supported Models
-### STFT Modal (Local)
-Simple, fast local model that separates tracks into frequency bands and uses change point detection algorithms to find most likely segment boundaries.
+### CBM Model (Local)
+Correlation Block-Matching (CBM) algorithm for music structure segmentation. Based on the paper by Marmoret et al. (2023): "Barwise Music Structure Analysis with the Correlation Block Matching Segmentation Algorithm" ([DOI](https://doi.org/10.5334/tismir.167)).
 
-Primary weakness right now is no understanding of song structure / repetition and no segment labeling. Keeping common annotations for similar section (e.g. two choruses) can significantly improve accuracy. The `recurrence_engine.py` is a WIP but is working on addressing these shortcomings.
+This is the default local model - it's fast and provides good accuracy without requiring remote compute.
 
 ### All-in-One (Remote via Modal)
 Deployment of [all-in-one](https://github.com/mir-aidj/all-in-one) model for segmentation. Read more about this approach in the corresponding [research paper](https://arxiv.org/abs/2307.16425).
@@ -28,7 +28,7 @@ python demo.py [OPTIONS]
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--mode` | `calc-metrics` | Mode to run: `calc-metrics` or `add-cuepoints` |
-| `--model` | `recurrence` | Model to use: `recurrence`, `stft`, or `all_in_one` |
+| `--model` | `cbm` | Model to use: `recurrence`, `cbm`, or `all_in_one` |
 | `--num-processes` | `1` | Number of parallel processes |
 | `--debug` | `False` | Enable debug logging and force single process |
 | `--default-track` | `False` | Run on default test track only |

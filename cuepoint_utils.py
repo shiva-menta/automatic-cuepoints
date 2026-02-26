@@ -10,8 +10,8 @@ from pyrekordbox import Rekordbox6Database
 
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 from track_interface.cuepoint_engines.recurrence_engine import RecurrenceEngine
-from track_interface.cuepoint_engines.stft_change_point_engine import StftChangePointEngine
 from track_interface.cuepoint_engines.all_in_one_engine import AllInOneEngine, AllInOneEngineParams
+from track_interface.cuepoint_engines.cbm_engine import CBMEngine
 from track_interface.track_interface import TrackInterface
 from track_interface.types import CuepointList
 
@@ -19,8 +19,8 @@ from track_interface.types import CuepointList
 # Engine registry
 ENGINE_MAP: Dict[str, CuepointEngine] = {
     "recurrence": RecurrenceEngine,
-    "stft": StftChangePointEngine,
     "all_in_one": AllInOneEngine,
+    "cbm": CBMEngine,
 }
 
 

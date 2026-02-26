@@ -14,6 +14,7 @@ from tqdm import tqdm
 from track_interface.cuepoint_engines.cuepoint_engine import CuepointEngine
 from track_interface.cuepoint_engines.recurrence_engine import RecurrenceEngineParams
 from track_interface.cuepoint_engines.all_in_one_engine import AllInOneEngineParams
+from track_interface.cuepoint_engines.cbm_engine import CBMEngineParams
 
 from track_interface.track_interface import TrackInterface
 from cuepoint_utils import CuepointProcessingArgs, add_cuepoints_to_playlist, ENGINE_MAP
@@ -123,6 +124,10 @@ def _process_song_metrics(song_data: Tuple) -> Tuple[str, Dict[str, int]]:
                 debug_mode=debug_mode,
                 use_cache=not force_calculate,
             )
+        case "cbm":
+            params = CBMEngineParams(
+                debug_mode=debug_mode,
+            )
 
     model_inst = _ENGINE_MAP[model_str](params=params)
 
@@ -218,7 +223,7 @@ def main():
     # general params
     parser.add_argument("--mode", type=str, default="calc-metrics",
                         help=f"Available modes are: ['calc-metrics', 'add-cuepoints'].")
-    parser.add_argument("--model", type=str, default="recurrence", help=f"Available modes are: ['recurrence', 'stft', 'genai']")
+    parser.add_argument("--model", type=str, default="cbm", help="Available models: recurrence, all_in_one, cbm")
     parser.add_argument("--num-processes", type=int, default=1, help="Number of songs to calculate metrics for.")
     # calc-metrics params
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logging within engines and force one process.")

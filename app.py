@@ -101,7 +101,7 @@ def process_cuepoints_add(encryption_key: str, playlist: str, model_type: ModelT
         progress_callback: Function to call with progress (0-100)
     """
     # Select model based on type
-    model = "all_in_one" if model_type == ModelType.REMOTE else "stft"
+    model = "all_in_one" if model_type == ModelType.REMOTE else "cbm"
 
     args = CuepointProcessingArgs(
         model=model,

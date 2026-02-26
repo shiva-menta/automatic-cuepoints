@@ -568,8 +568,8 @@ class AutocuepointsGUI(QWidget):
             remote_name_label.setText("☁️ Remote")
         remote_name_label.setFixedWidth(105)
 
-        remote_speed_label = QLabel("⚡ Fast")
-        remote_speed_label.setStyleSheet("color: #4caf50;")
+        remote_speed_label = QLabel("⏱️ Medium")
+        remote_speed_label.setStyleSheet("color: #ff9800;")
         remote_accuracy_label = QLabel("🏷️ Labeled cuepoints")
         remote_accuracy_label.setStyleSheet("color: #4caf50;")
 

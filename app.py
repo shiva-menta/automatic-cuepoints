@@ -427,6 +427,8 @@ class AutocuepointsGUI(QWidget):
         # Stretch to push content up
         main_layout.addStretch()
 
+        self._on_refresh_playlists()
+
         self.show()
 
     def _setup_modal_section(self):

@@ -1,21 +1,20 @@
 # automatic-cuepoints
 Software to automatically place cue points on tracks for easier mixing.
 
-## Supported Models
-### CBM Model (Local)
-Correlation Block-Matching (CBM) algorithm for music structure segmentation. Based on the paper by Marmoret et al. (2023): "Barwise Music Structure Analysis with the Correlation Block Matching Segmentation Algorithm" ([DOI](https://doi.org/10.5334/tismir.167)).
+## Prerequisites
+- Rekordbox v6 — Rekordbox v7 makes it harder to access the local database key used for song data and cuepoints. If you install Rekordbox v6 alongside v7, the key is much easier to retrieve. You can download older versions
+  [here](https://rekordbox.com/en/support/faq/v6/#faq-q600141). Installing v6 won't affect your v7 usage and you can continue to use the v7 Desktop App.
+- Modal Account (optional) - We use Modal to run more powerful segmentation models (with label recognition) on GPUs in the cloud.
 
-This is the default local model - it's fast and provides good accuracy without requiring remote compute.
+## Using the App
+We provide a simple Mac app (built with PyQt) so you can use this tool without any coding. Download the latest release and open `Autocuepoints.app`.
 
-### All-in-One (Remote via Modal)
-Deployment of [all-in-one](https://github.com/mir-aidj/all-in-one) model for segmentation. Read more about this approach in the corresponding [research paper](https://arxiv.org/abs/2307.16425).
+To rebuild the app from source:
+```
+uv run pyinstaller app.spec --noconfirm && open dist/Autocuepoints.app
+```
 
-Because this model is quite compute intensive (demucs for stem splitting and NATTEN for neighborhood attention), we only support running this model remotely via Modal, which has a generous free plan ($30/month). You'll need to provide your `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` in the app to run this model.
-
-Compute costs for each song is a few cents, so you should be able to easily label >1000 songs per month without paying more money.
-
-
-## CLI Support
+## Using the CLI 
 
 Run the CLI via `demo.py`:
 
@@ -47,6 +46,21 @@ python demo.py --mode add-cuepoints --model all_in_one --num-processes 4
 python demo.py --mode calc-metrics --debug --default-track
 ```
 
+## Supported Models
+### CBM Model (Local)
+Correlation Block-Matching (CBM) algorithm for music structure segmentation. Based on the paper by Marmoret et al. (2023): "Barwise Music Structure Analysis with the Correlation Block Matching Segmentation Algorithm" ([DOI](https://doi.org/10.5334/tismir.167)).
+
+This is the default local model - it's fast and provides good accuracy without requiring remote compute.
+
+### All-in-One (Remote via Modal)
+Deployment of [all-in-one](https://github.com/mir-aidj/all-in-one) model for segmentation. Read more about this approach in the corresponding [research paper](https://arxiv.org/abs/2307.16425).
+
+Because this model is quite compute intensive (demucs for stem splitting and NATTEN for neighborhood attention), we only support running this model remotely via Modal, which has a generous free plan ($30/month). You'll need to provide your `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` in the app to run this model.
+
+Compute costs for each song is a few cents, so you should be able to easily label >1000 songs per month without paying more money.
+
+I am working on modernizing this model for faster and cheaper performance [here](https://github.com/shiva-menta/all-in-one-modernized).
+
 ## Deploying Images & Serverless Functions
 ### allin1 Dockerfile
 If any changes are made to dependencies for running allin1 model via Dockerfile on Modal, you'll need to rebuild / republish the image to DockerHub. Modal uses this published image to run the segmentation model.
@@ -58,12 +72,6 @@ docker buildx build --platform linux/amd64 -f cuda.Dockerfile -t smenta/automati
 If any changes are made in `track_interface/cuepoint_engines/modal_app:process_audio` you'll need to redeploy the Modal serverless function so any updates are propagated to Modal.
 ```
 modal deploy track_interface/cuepoint_engines/modal_app.py
-```
-
-## Rebuilding App
-We use PyInstaller to build a simple Mac app (built with PyQt) for this program.
-```
-uv run pyinstaller app.spec --noconfirm && open dist/Autocuepoints.app
 ```
 
 ## In-Progress Work

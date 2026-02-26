@@ -539,8 +539,8 @@ class AutocuepointsGUI(QWidget):
         local_name_label.setFixedWidth(80)
         local_speed_label = QLabel("⚡ Fast")
         local_speed_label.setStyleSheet("color: #4caf50;")
-        local_accuracy_label = QLabel("🎯 Lower Accuracy")
-        local_accuracy_label.setStyleSheet("color: #ff9800;")
+        local_accuracy_label = QLabel("🏷️ Unlabeled cuepoints")
+        local_accuracy_label.setStyleSheet("color: #757575;")
 
         local_layout.addWidget(self.local_radio)
         local_layout.addWidget(local_name_label)
@@ -568,7 +568,7 @@ class AutocuepointsGUI(QWidget):
 
         remote_speed_label = QLabel("⚡ Fast")
         remote_speed_label.setStyleSheet("color: #4caf50;")
-        remote_accuracy_label = QLabel("🎯 Better Accuracy")
+        remote_accuracy_label = QLabel("🏷️ Labeled cuepoints")
         remote_accuracy_label.setStyleSheet("color: #4caf50;")
 
         remote_layout.addWidget(self.remote_radio)
